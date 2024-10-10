@@ -1,0 +1,16 @@
+[paths]
+source =
+    ../fakecbed
+    */site-packages/fakecbed
+
+[run]
+branch = true
+source =
+    fakecbed
+    .
+omit =
+    */fakecbed/version.py
+
+[report]
+show_missing = true
+precision = 2

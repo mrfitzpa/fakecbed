@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools", "wheel", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fakecbed"
+dynamic = ["version"]
+description = """
+A Python library for generating quickly images that imitate convergent beam \
+electron diffraction patterns.\
+"""
+readme = "README.md"
+authors = [
+    {name = "Matthew Fitzpatrick", email = "matthew.rc.fitzpatrick@gmail.com"}
+]
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Natural Language :: English"
+]
+keywords = [
+    "pytorch",
+    "microscopy",
+    "diffraction",
+    "cbed"
+]
+dependencies = [
+    "h5pywrappers",
+    "distoptica>=0.0.3",
+    "hyperspy[all]"
+]
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+tests = [
+    "pytest-cov"
+]
+examples = [
+    "jupyter",
+    "ipympl"
+]
+docs = [
+    "sphinx<7",
+    "sphinx_rtd_theme",
+    "sphinx-autodoc-typehints",
+    "numpydoc",
+    "docutils"
+]
+all = [
+    "fakecbed[tests, examples, docs]"
+]
+
+[project.urls]
+Homepage = "https://mrfitzpa.github.io/fakecbed"
+Repository = "https://github.com/mrfitzpa/fakecbed"
+
+[tool.setuptools_scm]
+write_to = "fakecbed/version.py"
+version_scheme = "post-release"
