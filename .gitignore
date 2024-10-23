@@ -11,7 +11,7 @@ pages/
 # Ignore select files.
 .coverage
 .python-version
-distoptica/version.py
+fakecbed/version.py
 tests/coverage.json
 
 # Ignore generated output coverage files.

@@ -13,17 +13,19 @@
 # this program. If not, see <https://www.gnu.org/licenses/gpl-3.0.html>.
 r"""For creating undistorted geometric shapes.
 
-This module contains classes that represent different undistorted geometric
-shapes that can be combined to construct intensity patterns that imitate
-convergent beam diffraction beam (CBED) patterns. As a shorthand, we refer to
-these intensity patterns that imitate CBED patterns as "fake CBED patterns".
+This module contains classes that represent the intensity patterns of different
+undistorted geometric shapes that can be combined to construct intensity
+patterns that imitate convergent beam diffraction beam (CBED) patterns. As a
+shorthand, we refer to these intensity patterns that imitate CBED patterns as
+"fake CBED patterns".
 
 Users can create images of fake CBED patterns using the
 :mod:`fakecbed.discretized` module. These images are formed by specifying a
 series of parameters, with the most important parameters being: the set of
-undistorted geometric shapes and Gaussian filters that determine the undistorted
-noiseless fake CBED pattern; and a distortion model which transforms the
-undistorted fake CBED pattern into a distorted fake CBED pattern.
+intensity patterns of undistorted geometric shapes and Gaussian filters that
+determine the undistorted noiseless fake CBED pattern; and a distortion model
+which transforms the undistorted fake CBED pattern into a distorted fake CBED
+pattern.
 
 Let :math:`u_{x}` and :math:`u_{y}` be the fractional horizontal and vertical
 coordinates, respectively, of a point in an undistorted image, where
@@ -58,9 +60,6 @@ import random
 # For performing deep copies.
 import copy
 
-# For defining abstract base classes.
-import abc
-
 
 
 # For general array handling.
@@ -85,58 +84,93 @@ import distoptica
 ##################################
 
 # List of public objects in module.
-__all__ = ["UniformDisk",
+__all__ = ["UniformEllipse",
            "Peak",
            "Band",
            "PlaneWave",
-           "NonUniformDisk"]
+           "NonUniformEllipse"]
 
 
 
-def _r(x, y, center):
-    x_c, y_c = center
-    x_minus_x_c = x-x_c
-    y_minus_y_c = y-y_c
+def _calc_u_r_sq(u_x, u_y, center):
+    u_x_c, u_y_c = center
+    delta_u_x = u_x-u_x_c
+    delta_u_y = u_y-u_y_c
 
-    r = torch.sqrt(x_minus_x_c*x_minus_x_c + y_minus_y_c*y_minus_y_c)
+    u_r_sq = delta_u_x*delta_u_x + delta_u_y*delta_u_y
 
-    return r
+    return u_r_sq
 
 
 
-def _r_sq(x, y, center):
-    x_c, y_c = center
-    x_minus_x_c = x-x_c
-    y_minus_y_c = y-y_c
+def _calc_u_r(u_x, u_y, center):
+    u_r_sq = _calc_u_r_sq(u_x, u_y, center)
+    u_r = torch.sqrt(u_r_sq)
 
-    r_sq = x_minus_x_c*x_minus_x_c + y_minus_y_c*y_minus_y_c
-
-    return r_sq
+    return u_r
 
 
 
 def _check_and_convert_cartesian_coords(params):
-    x, y = params["cartesian_coords"]
+    current_func_name = inspect.stack()[0][3]
+    char_idx = 19
+    obj_name = current_func_name[char_idx:]
+    obj = params[obj_name]
 
-    params["real_torch_matrix"] = x
-    params["name_of_alias_of_real_torch_matrix"] = "x"
-    x = distoptica._check_and_convert_real_torch_matrix(params)
+    u_x, u_y = obj
 
-    params["real_torch_matrix"] = y
-    params["name_of_alias_of_real_torch_matrix"] = "y"
-    y = distoptica._check_and_convert_real_torch_matrix(params)
+    params["real_torch_matrix"] = u_x
+    params["name_of_alias_of_real_torch_matrix"] = "u_x"
+    u_x = _check_and_convert_real_torch_matrix(params)
+
+    params["real_torch_matrix"] = u_y
+    params["name_of_alias_of_real_torch_matrix"] = "u_y"
+    u_y = _check_and_convert_real_torch_matrix(params)
 
     del params["real_torch_matrix"]
     del params["name_of_alias_of_real_torch_matrix"]
 
-    if x.shape != y.shape:
-        unformatted_err_msg = _check_and_convert_cartesian_coords_err_msg_1
-        err_msg = unformatted_err_msg.format("x", "y")
+    if u_x.shape != u_y.shape:
+        unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
+        err_msg = unformatted_err_msg.format("u_x", "u_y")
         raise ValueError(err_msg)
 
-    cartesian_coords = (x, y)
+    cartesian_coords = (u_x, u_y)
 
     return cartesian_coords
+
+
+
+def _check_and_convert_real_torch_matrix(params):
+    current_func_name = inspect.stack()[0][3]
+    char_idx = 19
+    obj_name = current_func_name[char_idx:]
+    obj = params[obj_name]
+    
+    name_of_alias_of_real_torch_matrix = \
+        params["name_of_alias_of_real_torch_matrix"]
+
+    try:
+        if not isinstance(obj, torch.Tensor):
+            kwargs = {"obj": obj,
+                      "obj_name": name_of_alias_of_real_torch_matrix}
+            obj = czekitout.convert.to_real_numpy_matrix(**kwargs)
+
+            obj = torch.tensor(obj,
+                               dtype=torch.float32,
+                               device=params["device"])
+    
+        if len(obj.shape) != 2:
+            raise
+            
+        real_torch_matrix = obj.to(device=params["device"], dtype=torch.float32)
+
+    except:
+        unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
+        err_msg = unformatted_err_msg.format(name_of_alias_of_real_torch_matrix)
+        raise TypeError(err_msg)
+
+    return real_torch_matrix
 
 
 
@@ -169,9 +203,20 @@ def _check_and_convert_torch_device_obj(params):
 
 
 
-_default_x = ((0.5,),)
-_default_y = _default_x
+def _check_and_convert_skip_validation_and_conversion(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    skip_validation_and_conversion = czekitout.convert.to_bool(**kwargs)
+
+    return skip_validation_and_conversion
+
+
+
+_default_u_x = ((0.5,),)
+_default_u_y = _default_x
 _default_device = None
+_default_skip_validation_and_conversion = False
 
 
 
@@ -213,106 +258,238 @@ class _BaseShape(_cls_alias):
 
 
 
-    def eval(self, x=_default_x, y=_default_y, device=_default_device):
-        params = {"cartesian_coords": (x, y), "device": device}
-        device = _check_and_convert_device(params)
-        x, y = _check_and_convert_cartesian_coords(params)
+    def eval(self,
+             u_x=\
+             _default_u_x,
+             u_y=\
+             _default_u_y,
+             device=\
+             _default_device,
+             skip_validation_and_conversion=\
+             _default_skip_validation_and_conversion):
+        func_alias = _check_and_convert_skip_validation_and_conversion
+        skip_validation_and_conversion = func_alias(params)
+
+        if (skip_validation_and_conversion == False):
+            params = {"cartesian_coords": (u_x, u_y), "device": device}
+            device = _check_and_convert_device(params)
+            u_x, u_y = _check_and_convert_cartesian_coords(params)
         
-        result = self._eval(x, y)
+        result = self._eval(u_x, u_y)
 
         return result
 
 
 
-    def _eval(self, x, y):
+    def _eval(self, u_x, u_y):
         pass
 
 
 
 def _check_and_convert_center(params):
-    center = distoptica._check_and_convert_center(params)
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+
+    cls_alias = \
+        distoptica.CoordTransformParams
+    validation_and_conversion_funcs = \
+        cls_alias.get_validation_and_conversion_funcs()
+    validation_and_conversion_func = \
+        validation_and_conversion_funcs[obj_name]
+    center = \
+        validation_and_conversion_func(params)
 
     return center
 
 
 
 def _pre_serialize_center(center):
-    serializable_rep = distoptica._pre_serialize_center(center)
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[15:]
+
+    cls_alias = \
+        distoptica.CoordTransformParams
+    pre_serialization_funcs = \
+        cls_alias.get_pre_serialization_funcs()
+    pre_serialization_func = \
+        pre_serialization_funcs[obj_name]
+    serializable_rep = \
+        pre_serialization_func(obj_to_pre_serialize)
     
     return serializable_rep
 
 
 
 def _de_pre_serialize_center(serializable_rep):
-    center = distoptica._de_pre_serialize_center(serializable_rep)
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[18:]
+
+    cls_alias = \
+        distoptica.CoordTransformParams
+    de_pre_serialization_funcs = \
+        cls_alias.get_de_pre_serialization_funcs()
+    de_pre_serialization_func = \
+        de_pre_serialization_funcs[obj_name]
+    center = \
+        de_pre_serialization_func(serializable_rep)
 
     return center
 
 
 
-def _check_and_convert_radius(params):
-    obj_name = "radius"
-    obj = params[obj_name]
-    radius = czekitout.convert.to_positive_float(obj, obj_name)
+def _check_and_convert_semi_major_axis(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    semi_major_axis = czekitout.convert.to_positive_float(**kwargs)
 
-    return radius
+    return semi_major_axis
 
 
 
-def _pre_serialize_radius(radius):
-    serializable_rep = radius
+def _pre_serialize_semi_major_axis(semi_major_axis):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
 
 
 
-def _de_pre_serialize_radius(serializable_rep):
-    radius = serializable_rep
+def _de_pre_serialize_semi_major_axis(serializable_rep):
+    semi_major_axis = serializable_rep
 
-    return radius
-
-
-
-def _check_and_convert_intra_disk_val(params):
-    obj_name = "intra_disk_val"
-    obj = params[obj_name]
-    intra_disk_val = czekitout.convert.to_float(obj, obj_name)
-
-    return intra_disk_val
+    return semi_major_axis
 
 
 
-def _pre_serialize_intra_disk_val(intra_disk_val):
-    serializable_rep = intra_disk_val
+def _check_and_convert_eccentricity(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    eccentricity = czekitout.convert.to_nonnegative_float(**kwargs)
+
+    if eccentricity > 1:
+        err_msg = globals()[current_func_name+"_err_msg_1"]
+        raise TypeError(err_msg)
+
+    return eccentricity
+
+
+
+def _pre_serialize_eccentricity(eccentricity):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
 
 
 
-def _de_pre_serialize_intra_disk_val(serializable_rep):
-    intra_disk_val = serializable_rep
+def _de_pre_serialize_eccentricity(serializable_rep):
+    eccentricity = serializable_rep
 
-    return intra_disk_val
-
-
-
-_default_center = distoptica._default_center
-_default_radius = 0.05
-_default_intra_disk_val = 1
+    return eccentricity
 
 
 
-class UniformDisk(_BaseShape):
-    r"""Insert description here.
+def _check_and_convert_rotation_angle(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    rotation_angle = czekitout.convert.to_float(**kwargs) % (2*np.pi)
+
+    return rotation_angle
+
+
+
+def _pre_serialize_rotation_angle(rotation_angle):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_rotation_angle(serializable_rep):
+    rotation_angle = serializable_rep
+
+    return rotation_angle
+
+
+
+def _check_and_convert_intra_ellipse_val(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    intra_ellipse_val = czekitout.convert.to_float(**kwargs)
+
+    return intra_ellipse_val
+
+
+
+def _pre_serialize_intra_ellipse_val(intra_ellipse_val):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_intra_ellipse_val(serializable_rep):
+    intra_ellipse_val = serializable_rep
+
+    return intra_ellipse_val
+
+
+
+_default_center = (0.5, 0.5)
+_default_semi_major_axis = 0.05
+_default_eccentricity = 0
+_default_rotation_angle = 0
+_default_intra_ellipse_val = 1
+
+
+
+class UniformEllipse(_BaseShape):
+    r"""The intensity pattern of a uniform ellipse.
+
+    Let :math:`\left(u_{x;c;O},u_{y;c;O}\right)`, :math:`a_{O}`, :math:`e_{O}`,
+    and :math:`\theta_{O}` be the center, the semi-major axis, the eccentricity,
+    and the rotation angle of the ellipse respectively. Furthermore, let
+    :math:`A_{O}` be the value of the intensity pattern inside the ellipse. The
+    intensity pattern is given by:
+
+    .. math ::
+        \mathcal{I}_{O}\left(u_{x},u_{y}\right)=
+        A_{O}\Theta\left(\Theta_{\arg;O}\left(u_{x},u_{y}\right)\right),
+        :label: intensity_pattern_of_uniform_ellipse__1
+
+    where :math:`\Theta\left(\cdots\right)` is the Heaviside step function, and
+
+    .. math ::
+        &\Theta_{\arg;O}\left(u_{x},u_{y}\right)\\&\quad=
+        \left\{ 1-e_{O}^{2}\right\} a_{O}^{2}\\
+        &\quad\quad-\left\{ 1-e_{O}^{2}\right\} 
+        \left\{ \left[u_{x}-u_{x;c;O}\right]\cos\left(\theta_{O}\right)
+        -\left[u_{x}-u_{x;c;O}\right]\sin\left(\theta_{O}\right)\right\} ^{2}\\
+        &\quad\quad-\left\{ \left[u_{x}-
+        u_{x;c;O}\right]\sin\left(\theta_{O}\right)+\left[u_{x}-
+        u_{x;c;O}\right]\cos\left(\theta_{O}\right)\right\} ^{2}.
+        :label: uniform_ellipse_support_arg__1
 
     Parameters
     ----------
     center : `array_like` (`float`, shape=(``2``,)), optional
-        Insert description here.
-    radius : `float`, optional
-        Insert description here.
-    intra_disk_val : `float`, optional
-        Insert description here.
+        The center of the ellipse, :math:`\left(u_{x;c;O},u_{x;c;O}\right)`.
+    semi_major_axis : `float`, optional
+        The semi-major axis of the ellipse, :math:`a_{O}`. Must be positive.
+    eccentricity : `float`, optional
+        The eccentricity of the ellipse, :math:`e_{O}`. Must be a nonnegative
+        number less than or equal to unity.
+    rotation_angle : `float`, optional
+        The rotation angle of the ellipse, :math:`\theta_{O}`.
+    intra_ellipse_val : `float`, optional
+        The value of the intensity pattern inside the ellipse.
 
     Attributes
     ----------
@@ -324,127 +501,123 @@ class UniformDisk(_BaseShape):
         their values might have been updated since construction.
 
     """
-    _validation_and_conversion_funcs = \
-        {"center": _check_and_convert_center,
-         "radius": _check_and_convert_radius,
-         "intra_disk_val": _check_and_convert_intra_disk_val}
+    ctor_param_names = ("center",
+                        "semi_major_axis",
+                        "eccentricity",
+                        "rotation_angle",
+                        "intra_ellipse_val")
+    kwargs = {"namespace_as_dict": globals(),
+              "ctor_param_names": ctor_param_names}
 
-    _pre_serialization_funcs = \
-        {"center": _pre_serialize_center,
-         "radius": _pre_serialize_radius,
-         "intra_disk_val": _pre_serialize_intra_disk_val}
+    _validation_and_conversion_funcs_ = \
+        fancytypes.return_validation_and_conversion_funcs(**kwargs)
+    _pre_serialization_funcs_ = \
+        fancytypes.return_pre_serialization_funcs(**kwargs)
+    _de_pre_serialization_funcs_ = \
+        fancytypes.return_de_pre_serialization_funcs(**kwargs)
 
-    _de_pre_serialization_funcs = \
-        {"center": _de_pre_serialize_center,
-         "radius": _de_pre_serialize_radius,
-         "intra_disk_val": _de_pre_serialize_intra_disk_val}
+    del ctor_param_names, kwargs
+
+    
 
     def __init__(self,
-                 center=_default_center,
-                 radius=_default_radius,
-                 intra_disk_val=_default_intra_disk_val):
+                 center=\
+                 _default_center,
+                 semi_major_axis=\
+                 _default_semi_major_axis,
+                 eccentricity=\
+                 _default_eccentricity,
+                 rotation_angle=\
+                 _default_rotation_angle,
+                 intra_ellipse_val=\
+                 _default_intra_ellipse_val,
+                 skip_validation_and_conversion=\
+                 _default_skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         _BaseShape.__init__(self, ctor_params)
 
-        self._post_base_update()
+        self.execute_post_core_attrs_update_actions()
 
         return None
 
 
 
-    def _post_base_update(self):
-        self._center = self._core_attrs["center"]
-        self._radius = self._core_attrs["radius"]
-        self._intra_disk_val = self._core_attrs["intra_disk_val"]
-
-        self._step_func = (self._step_func_1
-                           if (self._intra_disk_val == 1)
-                           else self._step_func_2)
+    def execute_post_core_attrs_update_actions(self):
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+        for self_core_attr_name in self_core_attrs:
+            attr_name = "_"+self_core_attr_name
+            attr = self_core_attrs[self_core_attr_name]
+            setattr(self, attr_name, attr)
 
         return None
 
 
 
-    def update(self, core_attr_subset):
-        super().update(core_attr_subset)
-        self._post_base_update()
+    def update(self, new_core_attr_subset_candidate):
+        super().update(new_core_attr_subset_candidate)
+        self.execute_post_core_attrs_update_actions()
 
         return None
 
 
 
-    def _eval(self, x, y):
-        center = self._center
-        
-        r_sq = _r_sq(x, y, center)
-
-        result = self._step_func(r_sq)
-
-        return result
-
-
-
-    def _step_func_1(self, r_sq):
-        R = self._radius
-
-        R_sq = R*R
-
-        result = (R_sq > r_sq)
+    def _eval(self, u_x, u_y):
+        A_O = self._intra_ellipse_val
+        support_arg = self._calc_support_arg(u_x, u_y)
+        one = torch.tensor(1.0, device=support_arg.device)
+        result = A_O * torch.heaviside(support_arg, one)
 
         return result
 
 
 
-    def _step_func_2(self, r_sq):
-        R = self._radius
-        A = self._intra_disk_val
+    def _calc_support_arg(self, u_x, u_y):
+        u_x_c_O, u_y_c_O = self._center
+        a_O = self._semi_major_axis
+        e_O = self._eccentricity
+        theta_O = self._rotation_angle
 
-        R_sq = R*R
+        delta_u_x_O = u_x-u_x_c_O
+        delta_u_y_O = u_y-u_y_c_O
 
-        one = torch.tensor(1.0, device=r_sq.device)
+        e_O_sq = e_O*e_O
+        a_O_sq = a_O*a_O
+        b_O_sq = (1-e_O_sq)*a_O_sq
 
-        result = A * torch.heaviside(R_sq-r_sq, one)
+        cos_theta_O = torch.cos(theta_O)
+        sin_theta_O = torch.sin(theta_O)
 
-        return result
+        delta_u_x_O_prime = (delta_u_x_O*cos_theta_O
+                             - delta_u_y_O*sin_theta_O)
+        delta_u_x_O_prime_sq = delta_u_x_O_prime*delta_u_x_O_prime
 
+        delta_u_y_O_prime = (delta_u_x_O*sin_theta_O
+                             + delta_u_y_O*cos_theta_O)
+        delta_u_y_O_prime_sq = delta_u_y_O_prime*delta_u_y_O_prime
 
+        support_arg = (b_O_sq
+                       - (b_O_sq/a_O_sq)*delta_u_x_O_prime_sq
+                       - delta_u_y_O_prime_sq)
 
-def _check_and_convert_width(params):
-    obj_name = "width"
-    obj = params[obj_name]
-    width = czekitout.convert.to_positive_float(obj, obj_name)
-
-    return width
-
-
-
-def _pre_serialize_width(width):
-    serializable_rep = width
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_width(serializable_rep):
-    width = serializable_rep
-
-    return width
+        return support_arg
 
 
 
 def _check_and_convert_val_at_center(params):
-    obj_name = "val_at_center"
-    obj = params[obj_name]
-    val_at_center = czekitout.convert.to_float(obj, obj_name)
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    val_at_center = czekitout.convert.to_float(**kwargs)
 
     return val_at_center
 
 
 
 def _pre_serialize_val_at_center(val_at_center):
-    serializable_rep = val_at_center
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
 
@@ -457,22 +630,127 @@ def _de_pre_serialize_val_at_center(serializable_rep):
 
 
 
-_default_width = 0.05
-_default_val_at_center = 1
+def _check_and_convert_width_factors(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    width_factors = czekitout.convert.to_pair_of_positive_floats(**kwargs)
+
+    return width_factors
 
 
 
-class _GaussianPeak(_BaseShape):
-    r"""Insert description here.
+def _pre_serialize_width_factors(width_factors):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_width_factors(serializable_rep):
+    width_factors = serializable_rep
+
+    return width_factors
+
+
+
+def _check_and_convert_asymmetry_factors(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    asymmetry_factors = czekitout.convert.to_pair_of_positive_floats(**kwargs)
+
+    return asymmetry_factors
+
+
+
+def _pre_serialize_asymmetry_factors(asymmetry_factors):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_asymmetry_factors(serializable_rep):
+    asymmetry_factors = serializable_rep
+
+    return asymmetry_factors
+
+
+
+def _check_and_convert_reflection_factors(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    reflection_factors = czekitout.convert.to_pair_of_bools(**kwargs)
+
+    return reflection_factors
+
+
+
+def _pre_serialize_reflection_factors(reflection_factors):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_reflection_factors(serializable_rep):
+    reflection_factors = serializable_rep
+
+    return reflection_factors
+
+
+
+class AsymmetricGaussianPeak(_BaseShape):
+    r"""The intensity pattern of an asymmetric Gaussian peak.
+
+    Let :math:`\left(u_{x;c;\text{AG}},u_{y;c;\text{AG}}\right)`,
+    :math:`\left(\sigma_{1;\text{AG}},\sigma_{2;\text{AG}}\right)`,
+    :math:`\left(\eta_{1;\text{AG}},\eta_{2;\text{AG}}\right)`,
+    :math:`\left(\nu_{1;\text{AG}},\nu_{2;\text{AG}}\right)`, and
+    :math:`\theta_{\text{AG}}` be the center, the width factors, the asymmetry
+    factors, the reflection factors, and the rotation angle of the asymmetric
+    Gaussian peak respectively. Furthermore, let :math:`A_{\text{AG}}` be the
+    value of the intensity pattern at the center of the peak. The intensity
+    pattern is given by:
+
+    .. math ::
+        \mathcal{I}_{\text{AG}}\left(u_{x},u_{y}\right)=
+        A_{\text{AG}}\prod_{\alpha=1}^{2}\left\{ \exp\left[
+        -\frac{1}{2}\left\{ \frac{z_{\alpha;\text{AG}}\left(u_{x},
+        u_{y}\right)}{\sigma_{\alpha;\text{AG}}}\right\} ^{2}\right]\right\} ,
+        :label: intensity_pattern_of_asymmetric_gaussian_peak__1
+
+    with :math:`\Theta\left(\cdots\right)` being the Heaviside step function,
+    and
+
+    .. math ::
+        z_{\alpha;\text{AG}}\left(u_{x},u_{y}\right)=
+        \frac{\tilde{z}_{\alpha;\text{AG}}\left(u_{x},
+        u_{y}\right)}{\eta_{\alpha;\text{AG}}^{\left\{
+        1-\nu_{\alpha;\text{AG}}\right\} -\left\{
+        1-2\nu_{\alpha;\text{AG}}\right\}
+        \Theta\left(\tilde{z}_{\alpha;\text{AG}}\left(u_{x},
+        u_{y}\right)\right)}},
+        :label: z_alpha_AG__1
 
     Parameters
     ----------
     center : `array_like` (`float`, shape=(``2``,)), optional
-        Insert description here.
-    width : `float`, optional
-        Insert description here.
-    val_at_center : `float`, optional
-        Insert description here.
+        The center of the ellipse, :math:`\left(u_{x;c;O},u_{x;c;O}\right)`.
+    semi_major_axis : `float`, optional
+        The semi-major axis of the ellipse, :math:`a_{O}`. Must be positive.
+    eccentricity : `float`, optional
+        The eccentricity of the ellipse, :math:`e_{O}`. Must be a nonnegative
+        number less than or equal to unity.
+    rotation_angle : `float`, optional
+        The rotation angle of the ellipse, :math:`\theta_{O}`.
+    intra_ellipse_val : `float`, optional
+        The value of the intensity pattern inside the ellipse.
 
     Attributes
     ----------
@@ -484,79 +762,260 @@ class _GaussianPeak(_BaseShape):
         their values might have been updated since construction.
 
     """
-    _validation_and_conversion_funcs = \
-        {"center": _check_and_convert_center,
-         "width": _check_and_convert_width,
-         "val_at_center": _check_and_convert_val_at_center}
+    ctor_param_names = ("center",
+                        "semi_major_axis",
+                        "eccentricity",
+                        "rotation_angle",
+                        "intra_ellipse_val")
+    kwargs = {"namespace_as_dict": globals(),
+              "ctor_param_names": ctor_param_names}
 
-    _pre_serialization_funcs = \
-        {"center": _pre_serialize_center,
-         "width": _pre_serialize_width,
-         "val_at_center": _pre_serialize_val_at_center}
+    _validation_and_conversion_funcs_ = \
+        fancytypes.return_validation_and_conversion_funcs(**kwargs)
+    _pre_serialization_funcs_ = \
+        fancytypes.return_pre_serialization_funcs(**kwargs)
+    _de_pre_serialization_funcs_ = \
+        fancytypes.return_de_pre_serialization_funcs(**kwargs)
 
-    _de_pre_serialization_funcs = \
-        {"center": _de_pre_serialize_center,
-         "width": _de_pre_serialize_width,
-         "val_at_center": _de_pre_serialize_val_at_center}
+    del ctor_param_names, kwargs
+
+    
 
     def __init__(self,
-                 center=_default_center,
-                 width=_default_width,
-                 val_at_center=_default_val_at_center):
+                 center=\
+                 _default_center,
+                 semi_major_axis=\
+                 _default_semi_major_axis,
+                 eccentricity=\
+                 _default_eccentricity,
+                 rotation_angle=\
+                 _default_rotation_angle,
+                 intra_ellipse_val=\
+                 _default_intra_ellipse_val,
+                 skip_validation_and_conversion=\
+                 _default_skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
         _BaseShape.__init__(self, ctor_params)
 
-        self._post_base_update()
+        self.execute_post_core_attrs_update_actions()
 
         return None
 
 
 
-    def _post_base_update(self):
-        self._center = self._core_attrs["center"]
-        self._width = self._core_attrs["width"]
-        self._val_at_center = self._core_attrs["val_at_center"]
+    def execute_post_core_attrs_update_actions(self):
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+        for self_core_attr_name in self_core_attrs:
+            attr_name = "_"+self_core_attr_name
+            attr = self_core_attrs[self_core_attr_name]
+            setattr(self, attr_name, attr)
 
         return None
 
 
 
-    def update(self, core_attr_subset):
-        super().update(core_attr_subset)
-        self._post_base_update()
+    def update(self, new_core_attr_subset_candidate):
+        super().update(new_core_attr_subset_candidate)
+        self.execute_post_core_attrs_update_actions()
 
         return None
 
 
 
-    def _eval(self, x, y):
-        result = self._eval_1(x, y)
+    def _eval(self, u_x, u_y):
+        A_O = self._intra_ellipse_val
+        support_arg = self._calc_support_arg(u_x, u_y)
+        one = torch.tensor(1.0, device=support_arg.device)
+        result = A_O * torch.heaviside(support_arg, one)
 
         return result
 
 
 
-    def _eval_1(self, x, y):
-        center = self._center
+    def _calc_support_arg(self, u_x, u_y):
+        u_x_c_O, u_y_c_O = self._center
+        a_O = self._semi_major_axis
+        e_O = self._eccentricity
+        theta_O = self._rotation_angle
+
+        delta_u_x_O = u_x-u_x_c_O
+        delta_u_y_O = u_y-u_y_c_O
+
+        e_O_sq = e_O*e_O
+        a_O_sq = a_O*a_O
+        b_O_sq = (1-e_O_sq)*a_O_sq
+
+        cos_theta_O = torch.cos(theta_O)
+        sin_theta_O = torch.sin(theta_O)
+
+        delta_u_x_O_prime = (delta_u_x_O*cos_theta_O
+                             - delta_u_y_O*sin_theta_O)
+        delta_u_x_O_prime_sq = delta_u_x_O_prime*delta_u_x_O_prime
+
+        delta_u_y_O_prime = (delta_u_x_O*sin_theta_O
+                             + delta_u_y_O*cos_theta_O)
+        delta_u_y_O_prime_sq = delta_u_y_O_prime*delta_u_y_O_prime
+
+        support_arg = (b_O_sq
+                       - (b_O_sq/a_O_sq)*delta_u_x_O_prime_sq
+                       - delta_u_y_O_prime_sq)
+
+        return support_arg
+
+
+
+# def _check_and_convert_width(params):
+#     current_func_name = inspect.stack()[0][3]
+#     obj_name = current_func_name[19:]
+#     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+#     width = czekitout.convert.to_positive_float(**kwargs)
+
+#     return width
+
+
+
+# def _pre_serialize_width(width):
+#     obj_to_pre_serialize = random.choice(list(locals().values()))
+#     serializable_rep = obj_to_pre_serialize
+    
+#     return serializable_rep
+
+
+
+# def _de_pre_serialize_width(serializable_rep):
+#     width = serializable_rep
+
+#     return width
+
+
+
+# def _check_and_convert_val_at_center(params):
+#     current_func_name = inspect.stack()[0][3]
+#     obj_name = current_func_name[19:]
+#     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+#     val_at_center = czekitout.convert.to_float(**kwargs)
+
+#     return val_at_center
+
+
+
+# def _pre_serialize_val_at_center(val_at_center):
+#     obj_to_pre_serialize = random.choice(list(locals().values()))
+#     serializable_rep = obj_to_pre_serialize
+    
+#     return serializable_rep
+
+
+
+# def _de_pre_serialize_val_at_center(serializable_rep):
+#     val_at_center = serializable_rep
+
+#     return val_at_center
+
+
+
+# _default_width = 0.05
+# _default_val_at_center = 1
+
+
+
+# class _GaussianPeak(_BaseShape):
+#     r"""Insert description here.
+
+#     Parameters
+#     ----------
+#     center : `array_like` (`float`, shape=(``2``,)), optional
+#         Insert description here.
+#     width : `float`, optional
+#         Insert description here.
+#     val_at_center : `float`, optional
+#         Insert description here.
+
+#     Attributes
+#     ----------
+#     core_attrs : `dict`, read-only
+#         A `dict` representation of the core attributes: each `dict` key is a
+#         `str` representing the name of a core attribute, and the corresponding
+#         `dict` value is the object to which said core attribute is set. The core
+#         attributes are the same as the construction parameters, except that 
+#         their values might have been updated since construction.
+
+#     """
+#     _validation_and_conversion_funcs = \
+#         {"center": _check_and_convert_center,
+#          "width": _check_and_convert_width,
+#          "val_at_center": _check_and_convert_val_at_center}
+
+#     _pre_serialization_funcs = \
+#         {"center": _pre_serialize_center,
+#          "width": _pre_serialize_width,
+#          "val_at_center": _pre_serialize_val_at_center}
+
+#     _de_pre_serialization_funcs = \
+#         {"center": _de_pre_serialize_center,
+#          "width": _de_pre_serialize_width,
+#          "val_at_center": _de_pre_serialize_val_at_center}
+
+#     def __init__(self,
+#                  center=_default_center,
+#                  width=_default_width,
+#                  val_at_center=_default_val_at_center):
+#         ctor_params = {key: val
+#                        for key, val in locals().items()
+#                        if (key not in ("self", "__class__"))}
+#         _BaseShape.__init__(self, ctor_params)
+
+#         self._post_base_update()
+
+#         return None
+
+
+
+#     def _post_base_update(self):
+#         self._center = self._core_attrs["center"]
+#         self._width = self._core_attrs["width"]
+#         self._val_at_center = self._core_attrs["val_at_center"]
+
+#         return None
+
+
+
+#     def update(self, core_attr_subset):
+#         super().update(core_attr_subset)
+#         self._post_base_update()
+
+#         return None
+
+
+
+#     def _eval(self, x, y):
+#         result = self._eval_1(x, y)
+
+#         return result
+
+
+
+#     def _eval_1(self, x, y):
+#         center = self._center
         
-        r = _r(x, y, center)
+#         r = _r(x, y, center)
         
-        result = self._eval_2(r)
+#         result = self._eval_2(r)
 
-        return result
+#         return result
 
 
 
-    def _eval_2(self, r):
-        sigma = self._width
-        A = self._val_at_center
-        r_over_sigma = r/sigma
+#     def _eval_2(self, r):
+#         sigma = self._width
+#         A = self._val_at_center
+#         r_over_sigma = r/sigma
         
-        result = A * torch.exp(-0.5 * r_over_sigma * r_over_sigma)
+#         result = A * torch.exp(-0.5 * r_over_sigma * r_over_sigma)
 
-        return result
+#         return result
 
 
 
@@ -1575,7 +2034,15 @@ class NonUniformDisk(_BaseShape):
 ###########################
 
 _check_and_convert_cartesian_coords_err_msg_1 = \
-    distoptica._check_and_convert_u_x_and_u_y_err_msg_1
+    ("The objects ``{}`` and ``{}`` must be real-valued matrices of the same "
+     "shape.")
+
+_check_and_convert_real_torch_matrix_err_msg_1 = \
+    ("The object ``{}`` must be a real-valued matrix.")
+
+_check_and_convert_eccentricity_err_msg_1 = \
+    ("The object ``eccentricity`` must be a nonnegative number less than or "
+     "equal to unity.")
 
 _check_and_convert_functional_form_err_msg_1 = \
     ("The object ``functiona_form`` must be set to ``'gaussian'``, "
