@@ -34,7 +34,6 @@ keywords = [
     "cbed"
 ]
 dependencies = [
-    "h5pywrappers",
     "distoptica>=0.1.1",
     "hyperspy[all]"
 ]
