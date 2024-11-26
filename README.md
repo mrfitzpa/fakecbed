@@ -1,7 +1,7 @@
 # Fake Convergence Beam Electron Diffraction (fakecbed)
 
 [![Test library](https://github.com/mrfitzpa/fakecbed/actions/workflows/test_library.yml/badge.svg)](https://github.com/mrfitzpa/fakecbed/actions/workflows/test_library.yml)
-[![Code Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mrfitzpa/447f5bf8ed721343f935eaf897e8564c/raw/fakecbed_coverage_badge.json)](https://github.com/mrfitzpa/fakecbed/actions/workflows/measure_code_coverage.yml)
+[![Code Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mrfitzpa/adb03c4c54f978f44822ffa033fe6762/raw/fakecbed_coverage_badge.json)](https://github.com/mrfitzpa/fakecbed/actions/workflows/measure_code_coverage.yml)
 [![Documentation](https://img.shields.io/badge/docs-read-brightgreen)](https://mrfitzpa.github.io/fakecbed)
 [![PyPi Version](https://img.shields.io/pypi/v/fakecbed.svg)](https://pypi.org/project/fakecbed)
 [![Conda-Forge Version](https://img.shields.io/conda/vn/conda-forge/fakecbed.svg)](https://anaconda.org/conda-forge/fakecbed)

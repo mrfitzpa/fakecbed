@@ -52,7 +52,7 @@ jobs:
       uses: schneegans/dynamic-badges-action@v1.7.0
       with:
         auth: ${{ secrets.CODE_COVERAGE_SECRET }}
-        gistID: 447f5bf8ed721343f935eaf897e8564c
+        gistID: adb03c4c54f978f44822ffa033fe6762
         filename: fakecbed_coverage_badge.json
         label: Code Coverage
         message: ${{ env.COV_PERCENT }}%

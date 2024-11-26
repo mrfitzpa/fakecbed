@@ -1,7 +1,4 @@
-"""Insert a one-line description of module.
-
-A more detailed description of the module. The more detailed description can
-span multiple lines.
+"""For modelling thermal diffuse scattering.
 
 """
 
@@ -11,10 +8,20 @@ span multiple lines.
 ## Load libraries/packages/modules ##
 #####################################
 
+# For accessing attributes of functions.
+import inspect
+
+# For randomly selecting items in dictionaries.
+import random
+
 # For performing deep copies.
 import copy
 
 
+
+# For general array handling.
+import numpy as np
+import torch
 
 # For validating and converting objects.
 import czekitout.check
@@ -27,21 +34,9 @@ import fancytypes
 
 
 # For validating, pre-serializing, and de-pre-serializing instances of the class
-# :class:`fakecbed.shapes.Peak`.
+# :class:`fakecbed.shapes.Peak`. Also for defining subclasses of the
+# :class:`fakecbed.shapes.BaseShape` class.
 import fakecbed.shapes
-
-
-
-############################
-## Authorship information ##
-############################
-
-__author__     = "Matthew Fitzpatrick"
-__copyright__  = "Copyright 2023"
-__credits__    = ["Matthew Fitzpatrick"]
-__maintainer__ = "Matthew Fitzpatrick"
-__email__      = "mrfitzpa@uvic.ca"
-__status__     = "Development"
 
 
 
@@ -54,206 +49,209 @@ __all__ = ["Model"]
 
 
 
-def _check_and_convert_cartesian_coords(params):
-    cartesian_coords = \
-        fakecbed.shapes._check_and_convert_cartesian_coords(params)
-
-    return cartesian_coords
-
-
-
-_default_x = fakecbed.shapes._default_x
-_default_y = fakecbed.shapes._default_y
-
-
-
-def _check_and_convert_device(params):
-    device = fakecbed.shapes._check_and_convert_device(params)
-
-    return device
-
-
-
-_default_device = fakecbed.shapes._default_device
-
-
-
-def _check_and_convert_peak(params):
-    obj_name = "peak"
-    obj = copy.deepcopy(params[obj_name])
-    
-    if obj is None:
-        kwargs = {"center": (0.5, 0.5), "width": 1, "val_at_center": 0}
-        peak = fakecbed.shapes.Peak(**kwargs)
-    else:   
-        kwargs = {"obj": obj,
-                  "obj_name": obj_name,
-                  "accepted_types": (fakecbed.shapes.Peak, type(None))}
-        czekitout.check.if_instance_of_any_accepted_types(**kwargs)
-        peak = obj
-
-        if peak._core_attrs["val_at_center"] < 0:
-            raise ValueError(_check_and_convert_peak_err_msg_1)
-
-    return peak
-
-
-
-def _pre_serialize_peak(peak):
-    serializable_rep = peak.pre_serialize()
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_peak(serializable_rep):
-    peak = fakecbed.shapes.Peak.de_pre_serialize(serializable_rep)
-
-    return peak
-
-
-
-def _check_and_convert_constant_background(params):
-    obj_name = "constant_background"
+def _check_and_convert_peaks(params):
+    current_func_name = inspect.stack()[0][3]
+    char_idx = 19
+    obj_name = current_func_name[char_idx:]
     obj = params[obj_name]
-    constant_background = czekitout.convert.to_nonnegative_float(obj, obj_name)
 
-    return constant_background
+    accepted_types = (fakecbed.shapes.Peak,)
+
+    try:
+        for peak in obj:
+            kwargs = {"obj": peak,
+                      "obj_name": "peak",
+                      "accepted_types": accepted_types}
+            czekitout.check.if_instance_of_any_accepted_types(**kwargs)
+    except:
+        err_msg = globals()[current_func_name+"_err_msg_1"]
+        raise TypeError(err_msg)
+
+    peaks = copy.deepcopy(obj)
+
+    return peaks
 
 
 
-def _pre_serialize_constant_background(constant_background):
-    serializable_rep = constant_background
+def _pre_serialize_peaks(peaks):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = tuple()
+    for elem in obj_to_pre_serialize:
+        serializable_rep += (elem.pre_serialize(),)
     
     return serializable_rep
 
 
 
-def _de_pre_serialize_constant_background(serializable_rep):
-    constant_background = serializable_rep
+def _de_pre_serialize_peaks(serializable_rep):
+    peaks = tuple()
+    for pre_serialized_peak in serializable_rep:
+        peak = fakecbed.shapes.Peak.de_pre_serialize(pre_serialized_peak)
+        peaks += (peak,)
 
-    return constant_background
-
-
-
-_default_peak = None
-_default_constant_background = 0
+    return peaks
 
 
 
-class Model(fancytypes.PreSerializableAndUpdatable):
-    r"""Insert description here.
+def _check_and_convert_constant_bg(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    constant_bg = czekitout.convert.to_nonnegative_float(**kwargs)
+
+    return constant_bg
+
+
+
+def _pre_serialize_constant_bg(constant_bg):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_constant_bg(serializable_rep):
+    constant_bg = serializable_rep
+
+    return constant_bg
+
+
+
+_default_peaks = \
+    tuple()
+_default_constant_bg = \
+    0
+_default_skip_validation_and_conversion = \
+    fakecbed.shapes._default_skip_validation_and_conversion
+
+
+
+class Model(fakecbed.shapes.BaseShape):
+    r"""The intensity pattern of a thermal diffuse scattering (TDS) model.
+
+    Let :math:`N_{\text{TDS}}`, and :math:`\left\{
+    \mathcal{I}_{k;\text{TDS}}\left(u_{x},u_{y}\right)\right\}
+    _{k=0}^{N_{\text{TDS}}-1}` be the number of peaks in the intensity pattern
+    of the TDS model, and the intensity patterns of said peaks
+    respectively. Furthermore, let :math:`C_{\text{TDS}}` be the value of the
+    intensity pattern of the TDS model at any point that is an arbitrarily large
+    distance away from the origin of the image coordinate axes. The undistorted
+    intensity pattern of the TDS model is given by:
+
+    .. math ::
+        \mathcal{I}_{\text{TDS}}\left(u_{x},u_{y}\right)=
+        C_{\text{TDS}}+\left|\sum_{k=0}^{N_{\text{TDS}}-1}
+        \mathcal{I}_{k;\text{TDS}}\left(u_{x},u_{y}\right)\right|,
+        :label: intensity_pattern_of_tds_model__1
+
+    where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
+    coordinates of the undistorted intensity pattern of the TDS model
+    respectively.
 
     Parameters
     ----------
-    peak : :class:`fakecbed.shapes.Peak` | `None`, optional
-        Insert description here.
-    constant_background : `float`, optional
-        Insert description here.
+    peaks : `array_like` (`fakecbed.shapes.Peak`, ndim=1), optional
+        The intensity patterns of the peaks, :math:`\left\{
+        \mathcal{I}_{k;\text{TDS}}\left(u_{x},u_{y}\right)\right\}
+        _{k=0}^{N_{\text{TDS}}-1}`, inside the intensity pattern of the TDS 
+        model.
+    constant_bg : `float`, optional
+        The value of the intensity pattern of the TDS model, 
+        :math:`C_{\text{TDS}}`, at any point that is an arbitrarily large 
+        distance away from the origin of the image coordinate axes. Must be 
+        nonnegative.
+    skip_validation_and_conversion : `bool`, optional
+        Let ``validation_and_conversion_funcs`` and ``core_attrs`` denote the
+        attributes :attr:`~fancytypes.Checkable.validation_and_conversion_funcs`
+        and :attr:`~fancytypes.Checkable.core_attrs` respectively, both of which
+        being `dict` objects.
 
-    Attributes
-    ----------
-    core_attrs : `dict`, read-only
-        A `dict` representation of the core attributes: each `dict` key is a
-        `str` representing the name of a core attribute, and the corresponding
-        `dict` value is the object to which said core attribute is set. The core
-        attributes are the same as the construction parameters, except that 
-        their values might have been updated since construction.
+        Let ``params_to_be_mapped_to_core_attrs`` denote the `dict`
+        representation of the constructor parameters excluding the parameter
+        ``skip_validation_and_conversion``, where each `dict` key ``key`` is a
+        different constructor parameter name, excluding the name
+        ``"skip_validation_and_conversion"``, and
+        ``params_to_be_mapped_to_core_attrs[key]`` would yield the value of the
+        constructor parameter with the name given by ``key``.
+
+        If ``skip_validation_and_conversion`` is set to ``False``, then for each
+        key ``key`` in ``params_to_be_mapped_to_core_attrs``,
+        ``core_attrs[key]`` is set to ``validation_and_conversion_funcs[key]
+        (params_to_be_mapped_to_core_attrs)``.
+
+        Otherwise, if ``skip_validation_and_conversion`` is set to ``True``,
+        then ``core_attrs`` is set to
+        ``params_to_be_mapped_to_core_attrs.copy()``. This option is desired
+        primarily when the user wants to avoid potentially expensive deep copies
+        and/or conversions of the `dict` values of
+        ``params_to_be_mapped_to_core_attrs``, as it is guaranteed that no
+        copies or conversions are made in this case.
 
     """
-    _validation_and_conversion_funcs = \
-        {"peak": _check_and_convert_peak,
-         "constant_background": _check_and_convert_constant_background}
+    ctor_param_names = ("peaks",
+                        "constant_bg")
+    kwargs = {"namespace_as_dict": globals(),
+              "ctor_param_names": ctor_param_names}
 
-    _pre_serialization_funcs = \
-        {"peak": _pre_serialize_peak,
-         "constant_background": _pre_serialize_constant_background}
+    _validation_and_conversion_funcs_ = \
+        fancytypes.return_validation_and_conversion_funcs(**kwargs)
+    _pre_serialization_funcs_ = \
+        fancytypes.return_pre_serialization_funcs(**kwargs)
+    _de_pre_serialization_funcs_ = \
+        fancytypes.return_de_pre_serialization_funcs(**kwargs)
 
-    _de_pre_serialization_funcs = \
-        {"peak": _de_pre_serialize_peak,
-         "constant_background": _de_pre_serialize_constant_background}
+    del ctor_param_names, kwargs
+
+    
 
     def __init__(self,
-                 peak=_default_peak,
-                 constant_background=_default_constant_background):
+                 peaks=\
+                 _default_peaks,
+                 constant_bg=\
+                 _default_constant_bg,
+                 skip_validation_and_conversion=\
+                 _default_skip_validation_and_conversion):
         ctor_params = {key: val
                        for key, val in locals().items()
                        if (key not in ("self", "__class__"))}
-        fancytypes.PreSerializableAndUpdatable.__init__(self, ctor_params)
+        fakecbed.shapes.BaseShape.__init__(self, ctor_params)
 
-        self._post_base_update()
-
-        return None
-
-
-
-    def _post_base_update(self):
-        self._peak = self._core_attrs["peak"]
-        self._constant_background = self._core_attrs["constant_background"]
+        self.execute_post_core_attrs_update_actions()
 
         return None
 
 
 
-    def update(self, core_attr_subset):
-        super().update(core_attr_subset)
-        self._post_base_update()
+    def execute_post_core_attrs_update_actions(self):
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+        for self_core_attr_name in self_core_attrs:
+            attr_name = "_"+self_core_attr_name
+            attr = self_core_attrs[self_core_attr_name]
+            setattr(self, attr_name, attr)
 
         return None
 
 
 
-    def eval(self, x=_default_x, y=_default_y, device=_default_device):
-        params = {"cartesian_coords": (x, y), "device": device}
-        device = _check_and_convert_device(params)
-        x, y = _check_and_convert_cartesian_coords(params)
+    def update(self, new_core_attr_subset_candidate):
+        super().update(new_core_attr_subset_candidate)
+        self.execute_post_core_attrs_update_actions()
 
-        result = self._eval(x, y)
+        return None
+
+
+
+    def _eval(self, u_x, u_y):
+        peaks = self._peaks
+        C = self._constant_bg
+        
+        result = torch.zeros_like(u_x)
+        for peak in peaks:
+            result += peak._eval(u_x, u_y)
+        result = C+torch.abs(result)
 
         return result
-
-
-
-    def _eval(self, x, y):
-        result = self._peak.eval(x, y) + self._constant_background
-
-        return result
-
-
-
-def _check_and_convert_undistorted_tds_model(params):
-    obj_name = "undistorted_tds_model"
-    obj = copy.deepcopy(params[obj_name])
-    
-    if obj is None:
-        undistorted_tds_model = Model()
-    else:
-        accepted_types = (Model, type(None))
-        kwargs = {"obj": obj,
-                  "obj_name": obj_name,
-                  "accepted_types": accepted_types}
-        czekitout.check.if_instance_of_any_accepted_types(**kwargs)
-        undistorted_tds_model = obj
-
-    return undistorted_tds_model
-
-
-
-def _pre_serialize_undistorted_tds_model(undistorted_tds_model):
-    serializable_rep = undistorted_tds_model.pre_serialize()
-    
-    return serializable_rep
-
-
-
-def _de_pre_serialize_undistorted_tds_model(serializable_rep):
-    undistorted_tds_model = Model.de_pre_serialize(serializable_rep)
-
-    return undistorted_tds_model
-
-
-
-_default_undistorted_tds_model = None
 
 
 
@@ -261,6 +259,6 @@ _default_undistorted_tds_model = None
 ## Define error messages ##
 ###########################
 
-_check_and_convert_peak_err_msg_1 = \
-    ("The object ``peak`` must specify either a positive-valued peak, or "
-     "trivially a zero-valued peak.")
+_check_and_convert_peaks_err_msg_1 = \
+    ("The object ``peaks`` must be a sequence of `fakecbed.shapes.Peak` "
+     "objects.")

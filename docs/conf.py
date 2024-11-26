@@ -127,7 +127,11 @@ intersphinx_mapping = \
     {"python": ("https://docs.python.org/3", None),
      "numpy": ("https://numpy.org/doc/stable", None),
      "torch": ("http://pytorch.org/docs/stable/", None),
-     "fancytypes": ("https://mrfitzpa.github.io/fancytypes", None)}
+     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+     "skimage": ("https://scikit-image.org/docs/stable/", None),
+     "hyperspy": ("https://hyperspy.org/hyperspy-doc/current/", None),
+     "fancytypes": ("https://mrfitzpa.github.io/fancytypes", None),
+     "distoptica": ("https://mrfitzpa.github.io/distoptica", None)}
 
 
 
