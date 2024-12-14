@@ -836,7 +836,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
     3. Calculate
 
     .. math ::
-        \mathcal{I}_{\text{MF};\wasylozenge;n,m}\leftarrow\begin{cases}
+        \mathcal{I}_{\text{MF};⌑;n,m}\leftarrow\begin{cases}
         \text{True}, & \text{if }L\le m<N_{\mathcal{I};x}-R
         \text{ and }T\le n<N_{\mathcal{I};y}-B,\\
         \text{False}, & \text{otherwise}.
