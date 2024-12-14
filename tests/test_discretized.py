@@ -54,27 +54,20 @@ def generate_cbed_pattern():
 def generate_cbed_pattern_ctor_params():
     num_pixels_across_pattern = 128
 
-    undistorted_tds_model = \
-        generate_undistorted_tds_model()
+    undistorted_tds_model = generate_undistorted_tds_model()
     
-    undistorted_disks = \
-        generate_undistorted_disks()
+    undistorted_disks = generate_undistorted_disks()
 
-    kwargs = \
-        {"undistorted_disks": undistorted_disks}
-    undistorted_misc_shapes = \
-        generate_undistorted_misc_shapes(**kwargs)
+    kwargs = {"undistorted_disks": undistorted_disks}
+    undistorted_misc_shapes = generate_undistorted_misc_shapes(**kwargs)
 
     undistorted_outer_illumination_shape = \
         generate_undistorted_outer_illumination_shape(**kwargs)
 
-    kwargs = \
-        {"num_pixels_across_pattern": num_pixels_across_pattern}
-    distortion_model = \
-        generate_distortion_model(**kwargs)
+    kwargs = {"num_pixels_across_pattern": num_pixels_across_pattern}
+    distortion_model = generate_distortion_model(**kwargs)
 
-    cold_pixels = \
-        generate_cold_pixels(num_pixels_across_pattern)
+    cold_pixels = generate_cold_pixels(num_pixels_across_pattern)
 
     cbed_pattern_ctor_params = {"undistorted_tds_model": \
                                 undistorted_tds_model,
@@ -96,6 +89,8 @@ def generate_cbed_pattern_ctor_params():
                                 4,
                                 "cold_pixels": \
                                 cold_pixels,
+                                "mask_frame": \
+                                (2, 5, 0, 7),
                                 "skip_validation_and_conversion": \
                                 False}
 

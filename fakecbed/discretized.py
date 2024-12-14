@@ -490,6 +490,31 @@ def _de_pre_serialize_cold_pixels(serializable_rep):
 
 
 
+def _check_and_convert_mask_frame(params):
+    current_func_name = inspect.stack()[0][3]
+    obj_name = current_func_name[19:]
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    mask_frame = czekitout.convert.to_quadruplet_of_nonnegative_ints(**kwargs)
+
+    return mask_frame
+
+
+
+def _pre_serialize_mask_frame(mask_frame):
+    obj_to_pre_serialize = random.choice(list(locals().values()))
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_mask_frame(serializable_rep):
+    mask_frame = serializable_rep
+
+    return mask_frame
+
+
+
 def _check_and_convert_deep_copy(params):
     current_func_name = inspect.stack()[0][3]
     obj_name = current_func_name[19:]
@@ -561,6 +586,8 @@ _default_skip_validation_and_conversion = \
     fakecbed.shapes._default_skip_validation_and_conversion
 _default_deep_copy = \
     True
+_default_mask_frame = \
+    4*(0,)
 
 
 
@@ -708,6 +735,15 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
     :math:`n_{k;\text{CP}}` and :math:`m_{k;\text{CP}}` respectively, with the
     integer :math:`k` being equal to the value of ``k``.
 
+    The mask frame of the image of the target fake CBED pattern is specified by
+    the parameter ``mask_frame``, which is expected to be a 4-element tuple,
+    :math:`\left(L, R, B, T\right)`, of nonnegative integers. ``mask_frame[0]``,
+    ``mask_frame[1]``, ``mask_frame[2]``, and ``mask_frame[3]`` are the widths,
+    in units of pixels, of the left, right, bottom, and top sides of the mask
+    frame respectively. If all elements of ``mask_frame`` are zero, then no
+    pixels in the image of the target fake CBED pattern are masked by the mask
+    frame. 
+
     Below we describe in more detail how various attributes of the current class
     are effectively calculated. Before doing so, we need to introduce a few more
     quantities:
@@ -800,14 +836,12 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
     3. Calculate
 
     .. math ::
-        \mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}&
-        \leftarrow\mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}\\&
-        \quad\quad\mathop{+}\mathcal{I}_{k;\text{D}}\left(
-        T_{\square;x}\left(q_{\mathring{\mathcal{I}};x;j},
-        q_{\mathring{\mathcal{I}};y;i}\right),T_{\square;y}\left(
-        q_{\mathring{\mathcal{I}};x;j},
-        q_{\mathring{\mathcal{I}};y;i}\right)\right),
-        :label: HD_I_CBED__1
+        \mathcal{I}_{\text{MF};\wasylozenge;n,m}\leftarrow\begin{cases}
+        \text{True}, & \text{if }L\le m<N_{\mathcal{I};x}-R
+        \text{ and }T\le n<N_{\mathcal{I};y}-B,\\
+        \text{False}, & \text{otherwise}.
+        \end{cases}
+        :label: LD_I_MF__1
 
     4. For :math:`0\le k<N_{\text{D}}`, calculate
 
@@ -818,7 +852,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         q_{\mathring{\mathcal{I}};x;j},q_{\mathring{\mathcal{I}};y;i}\right),
         T_{\square;y}\left(q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right)\right),
-        :label: HD_I_CBED__2
+        :label: HD_I_CBED__1
 
     .. math ::
         \mathring{\mathcal{I}}_{k;\text{DS};⌑;i,j}\leftarrow
@@ -851,7 +885,9 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
     .. math ::
         \mathcal{I}_{\text{DOM};⌑;n,m}\leftarrow
-        \mathcal{I}_{\text{OI};⌑;n,m}\mathcal{I}_{\text{DOM};⌑;n,m}.
+        \mathcal{I}_{\text{MF};⌑;n,m}
+        \mathcal{I}_{\text{OI};⌑;n,m}
+        \mathcal{I}_{\text{DOM};⌑;n,m}.
         :label: LD_I_DOM__3
 
     6. For :math:`0\le k<N_{\text{M}}`, calculate
@@ -863,7 +899,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         q_{\mathring{\mathcal{I}};x;j},q_{\mathring{\mathcal{I}};y;i}\right),
         T_{\square;y}\left(q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right)\right).
-        :label: HD_I_CBED__3
+        :label: HD_I_CBED__2
 
     7. Calculate
 
@@ -873,7 +909,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right)\right)
         \mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}.
-        :label: HD_I_CBED__4
+        :label: HD_I_CBED__3
 
     8. Apply average pooling to
     :math:`\mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}` with a kernel of
@@ -916,7 +952,9 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
     .. math ::
         \mathcal{I}_{\text{CBED};⌑;n,m}\leftarrow
-        \mathcal{I}_{\text{OI};⌑;n,m}\mathcal{I}_{\text{CBED};⌑;n,m}.
+        \mathcal{I}_{\text{MF};⌑;n,m}
+        \mathcal{I}_{\text{OI};⌑;n,m}
+        \mathcal{I}_{\text{CBED};⌑;n,m}.
         :label: LD_I_CBED__1
 
     14. Update pixels of :math:`\mathcal{I}_{\text{CBED};⌑;n,m}` at pixel
@@ -928,7 +966,8 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
     16. Calculate
 
     .. math ::
-        \mathcal{I}_{\text{CS};⌑;n,m}\leftarrow1-\mathcal{I}_{\text{OI};⌑;n,m}.
+        \mathcal{I}_{\text{CS};⌑;n,m}\leftarrow1
+        -\mathcal{I}_{\text{MF};⌑;n,m}\mathcal{I}_{\text{OI};⌑;n,m}.
         :label: LD_I_CS__1
 
     17. Convolve a :math:`3 \times 3` filter of ones over a symmetrically unity-padded
@@ -1017,6 +1056,13 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         :math:`N_{\text{DPW}}`. Must be nonnegative.
     cold_pixels : `array_like` (`int`, ndim=2), optional
         The pixel coordinates of the cold pixels.
+    mask_frame : `array_like` (`int`, shape=(4,)), optional
+        ``mask_frame`` specifies the mask frame of the image of the target fake
+        CBED pattern. ``mask_frame[0]``, ``mask_frame[1]``, ``mask_frame[2]``,
+        and ``mask_frame[3]`` are the widths, in units of pixels, of the left,
+        right, bottom, and top sides of the mask frame respectively. If all
+        elements of ``mask_frame`` are zero, then no pixels in the image of the
+        target fake CBED pattern are masked by the mask frame.
 
     """
     ctor_param_names = ("undistorted_tds_model",
@@ -1028,7 +1074,8 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
                         "distortion_model",
                         "apply_shot_noise",
                         "detector_partition_width_in_pixels",
-                        "cold_pixels")
+                        "cold_pixels",
+                        "mask_frame")
     kwargs = {"namespace_as_dict": globals(),
               "ctor_param_names": ctor_param_names}
     
@@ -1064,6 +1111,8 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
                  _default_detector_partition_width_in_pixels,
                  cold_pixels=\
                  _default_cold_pixels,
+                 mask_frame=\
+                 _default_mask_frame,
                  skip_validation_and_conversion=\
                  _default_skip_validation_and_conversion):
         ctor_params = {key: val
@@ -1194,8 +1243,15 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         .. code-block:: python
 
            coords_of_cold_pixels = core_attrs["cold_pixels"]
+           L, R, B, T = core_attrs["mask_frame"]
+           N_I_x = core_attrs["num_pixels_across_pattern"]
+           N_I_y = N_I_x
 
            image = (overriding_image * illumination_support).clip(min=0)
+           image[:T, :] = 0
+           image[max(N_I_y-B, 0):, :] = 0
+           image[:, :L] = 0
+           image[:, max(N_I_x-R, 0):] = 0
            for coords_of_cold_pixel in coords_of_cold_pixels:
                image[coords_of_cold_pixel] = 0
 
@@ -1244,8 +1300,15 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         illumination_support = self._illumination_support
 
         coords_of_cold_pixels = self._cold_pixels
+        L, R, B, T = self._mask_frame
+        N_I_x = self._num_pixels_across_pattern
+        N_I_y = N_I_x
 
         image = overriding_image*illumination_support
+        image[:T, :] = 0
+        image[max(N_I_y-B, 0):, :] = 0
+        image[:, :L] = 0
+        image[:, max(N_I_x-R, 0):] = 0
         for coords_of_cold_pixel in coords_of_cold_pixels:
             image[coords_of_cold_pixel] = 0
 
@@ -1391,12 +1454,19 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         disk_supports = self._disk_supports.numpy(force=True)
 
         num_disks = self._num_disks
+        L, R, B, T = self._mask_frame
+        N_I_x = self._num_pixels_across_pattern
+        N_I_y = N_I_x
 
         signal_data_shape = (num_disks+3,) + image.shape
 
         signal_data = np.zeros(signal_data_shape, dtype=image.dtype)
         signal_data[0] = image
         signal_data[1] = illumination_support
+        signal_data[1, :T, :] = 0
+        signal_data[1, max(N_I_y-B, 0):, :] = 0
+        signal_data[1, :, :L] = 0
+        signal_data[1, :, max(N_I_x-R, 0):] = 0
         signal_data[2] = disk_overlap_map
         signal_data[3:] = disk_supports
 
@@ -1474,25 +1544,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
                 self._disk_supports = method_alias(u_x, u_y)
             disk_supports = self._disk_supports
 
-            clip_support = ~illumination_support
-            for _ in range(2):
-                clip_support = torch.unsqueeze(clip_support, dim=0)
-            clip_support = clip_support.to(dtype=torch.float)
-
-            conv_weights = torch.ones((1, 1, 5, 5),
-                                      device=illumination_support.device)
-
-            kwargs = {"input": clip_support,
-                      "weight": conv_weights,
-                      "padding": "same"}
-            clip_support = (torch.nn.functional.conv2d(**kwargs) != 0)
-            clip_support = clip_support.to(dtype=torch.bool)
-
-            clip_support[0, 0, :2, :] = True
-            clip_support[0, 0, -2:, :] = True
-            clip_support[0, 0, :, :2] = True
-            clip_support[0, 0, :, -2:] = True
-            clip_support = clip_support[0, 0]
+            clip_support = self._calc_clip_support(illumination_support)
 
             disk_clipping_map = disk_supports*clip_support[None, :, :]
     
@@ -1512,6 +1564,10 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         num_disks = len(undistorted_disks)
 
         if num_disks > 0:
+            L, R, B, T = self._mask_frame
+            N_I_x = self._num_pixels_across_pattern
+            N_I_y = N_I_x
+
             if self._illumination_support is None:
                 method_name = "_calc_illumination_support"
                 method_alias = getattr(self, method_name)
@@ -1534,6 +1590,10 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
             disk_supports = pooler(disk_supports)[0]
             disk_supports = disk_supports.to(dtype=torch.bool)
             disk_supports[:, :, :] *= illumination_support[None, :, :]
+            disk_supports[:, :T, :] = 0
+            disk_supports[:, max(N_I_y-B, 0):, :] = 0
+            disk_supports[:, :, :L] = 0
+            disk_supports[:, :, max(N_I_x-R, 0):] = 0
         else:
             num_pixels_across_pattern = self._num_pixels_across_pattern
             
@@ -1546,6 +1606,35 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
                                         dtype=torch.bool)
 
         return disk_supports
+
+
+
+    def _calc_clip_support(self, illumination_support):
+        L, R, B, T = self._mask_frame
+        N_I_x = self._num_pixels_across_pattern
+        N_I_y = N_I_x
+
+        clip_support = ~illumination_support
+        for _ in range(2):
+            clip_support = torch.unsqueeze(clip_support, dim=0)
+        clip_support = clip_support.to(dtype=torch.float)
+
+        conv_weights = torch.ones((1, 1, 5, 5),
+                                  device=illumination_support.device)
+
+        kwargs = {"input": clip_support,
+                  "weight": conv_weights,
+                  "padding": "same"}
+        clip_support = (torch.nn.functional.conv2d(**kwargs) != 0)
+
+        clip_support = clip_support.to(dtype=torch.bool)
+        clip_support[0, 0, :T+2, :] = True
+        clip_support[0, 0, max(N_I_y-B-2, 0):, :] = True
+        clip_support[0, 0, :, :L+2] = True
+        clip_support[0, 0, :, max(N_I_x-R-2, 0):] = True
+        clip_support = clip_support[0, 0]
+
+        return clip_support
 
 
 
@@ -1594,7 +1683,14 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
                  else noiseless_image)
 
         coords_of_cold_pixels = self._cold_pixels
+        L, R, B, T = self._mask_frame
+        N_I_x = self._num_pixels_across_pattern
+        N_I_y = N_I_x
 
+        image[:T, :] = 0
+        image[max(N_I_y-B, 0):, :] = 0
+        image[:, :L] = 0
+        image[:, max(N_I_x-R, 0):] = 0
         for coords_of_cold_pixel in coords_of_cold_pixels:
             image[coords_of_cold_pixel] = 0
 
@@ -1796,8 +1892,16 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
                 self._disk_supports = method_alias(u_x, u_y)
             disk_supports = self._disk_supports
 
+            L, R, B, T = self._mask_frame
+            N_I_x = self._num_pixels_across_pattern
+            N_I_y = N_I_x
+
             disk_overlap_map = (illumination_support
                                 * torch.sum(disk_supports, dim=0))
+            disk_overlap_map[:T, :] = 0
+            disk_overlap_map[max(N_I_y-B, 0):, :] = 0
+            disk_overlap_map[:, :L] = 0
+            disk_overlap_map[:, max(N_I_x-R, 0):] = 0
         else:
             num_pixels_across_pattern = self._num_pixels_across_pattern
             
@@ -1872,8 +1976,16 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
         .. code-block:: python
 
+           L, R, B, T = core_attrs["mask_frame"]
+           N_I_x = core_attrs["num_pixels_across_pattern"]
+           N_I_y = N_I_x
+
            signal.data[0] = image.numpy(force=True)
            signal.data[1] = illumination_support.numpy(force=True)
+           signal.data[1, :T, :] = 0
+           signal.data[1, max(N_I_y-B, 0):, :] = 0
+           signal.data[1, :, :L] = 0
+           signal.data[1, :, max(N_I_x-R, 0):] = 0
            signal.data[2] = disk_overlap_map.numpy(force=True)
            signal.data[3:] = disk_supports.numpy(force=True)
 
