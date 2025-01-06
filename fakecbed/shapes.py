@@ -2264,7 +2264,7 @@ class GenericBlob(BaseShape):
     radial_reference_pt : `array_like` (`float`, shape=(``2``,)), optional
         The radial reference point, :math:`\left(u_{x;c;\text{GB}},
         u_{y;c;\text{GB}}\right)`.
-    radial_amplitudes : `array_like` (`float`, shape=(``2``,)), optional
+    radial_amplitudes : `array_like` (`float`, ndim=1), optional
         The radial amplitudes, 
         :math:`\left\{ D_{\text{GB};n}\right\} _{n=0}^{N_{\text{GB}}}`.
     radial_phases : `array_like` (`float`, shape=(``len(radial_amplitudes)-1``,)), optional
