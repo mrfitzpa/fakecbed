@@ -558,8 +558,12 @@ class Circle(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -798,8 +802,12 @@ class Ellipse(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -1110,8 +1118,12 @@ class Peak(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -1530,8 +1542,12 @@ class Band(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -1814,8 +1830,12 @@ class PlaneWave(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -2064,8 +2084,12 @@ class Arc(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -2351,8 +2375,12 @@ class GenericBlob(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -2809,8 +2837,12 @@ class Orbital(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -3119,8 +3151,12 @@ class Lune(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
@@ -3375,8 +3411,12 @@ class NonuniformBoundedShape(BaseShape):
 
 
 
-    def update(self, new_core_attr_subset_candidate):
-        super().update(new_core_attr_subset_candidate)
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
         self.execute_post_core_attrs_update_actions()
 
         return None
