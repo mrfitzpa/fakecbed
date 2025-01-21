@@ -21,12 +21,6 @@
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
-# For randomly selecting items in dictionaries.
-import random
-
 # For performing deep copies.
 import copy
 
@@ -74,9 +68,7 @@ __all__ = ["CBEDPattern"]
 
 
 def _check_and_convert_undistorted_tds_model(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "undistorted_tds_model"
     obj = params[obj_name]
 
     accepted_types = (fakecbed.tds.Model, type(None))
@@ -95,7 +87,7 @@ def _check_and_convert_undistorted_tds_model(params):
 
 
 def _pre_serialize_undistorted_tds_model(undistorted_tds_model):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = undistorted_tds_model
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -111,10 +103,10 @@ def _de_pre_serialize_undistorted_tds_model(serializable_rep):
 
 
 def _check_and_convert_undistorted_disks(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "undistorted_disks"
     obj = params[obj_name]
+
+    current_func_name = "_check_and_convert_undistorted_disks"
 
     try:
         for undistorted_disk in obj:
@@ -147,7 +139,7 @@ def _check_and_convert_undistorted_disks(params):
 
 
 def _pre_serialize_undistorted_disks(undistorted_disks):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = undistorted_disks
     serializable_rep = tuple()
     for elem in obj_to_pre_serialize:
         serializable_rep += (elem.pre_serialize(),)
@@ -172,9 +164,7 @@ def _de_pre_serialize_undistorted_disks(serializable_rep):
 
 
 def _check_and_convert_undistorted_misc_shapes(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "undistorted_misc_shapes"
     obj = params[obj_name]
 
     accepted_types = (fakecbed.shapes.Circle,
@@ -187,6 +177,8 @@ def _check_and_convert_undistorted_misc_shapes(params):
                       fakecbed.shapes.Orbital,
                       fakecbed.shapes.Lune,
                       fakecbed.shapes.NonuniformBoundedShape)
+
+    current_func_name = "_check_and_convert_undistorted_misc_shapes"
 
     try:
         for undistorted_misc_shape in obj:
@@ -205,7 +197,7 @@ def _check_and_convert_undistorted_misc_shapes(params):
 
 
 def _pre_serialize_undistorted_misc_shapes(undistorted_misc_shapes):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = undistorted_misc_shapes
     serializable_rep = tuple()
     for elem in obj_to_pre_serialize:
         serializable_rep += (elem.pre_serialize(),)
@@ -249,9 +241,7 @@ def _de_pre_serialize_undistorted_misc_shapes(serializable_rep):
 
 
 def _check_and_convert_undistorted_outer_illumination_shape(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "undistorted_outer_illumination_shape"
     obj = params[obj_name]
 
     accepted_types = (fakecbed.shapes.Circle,
@@ -275,7 +265,7 @@ def _check_and_convert_undistorted_outer_illumination_shape(params):
 
 def _pre_serialize_undistorted_outer_illumination_shape(
         undistorted_outer_illumination_shape):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = undistorted_outer_illumination_shape
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -298,8 +288,7 @@ def _de_pre_serialize_undistorted_outer_illumination_shape(serializable_rep):
 
 
 def _check_and_convert_gaussian_filter_std_dev(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "gaussian_filter_std_dev"
     func_alias = czekitout.convert.to_nonnegative_float
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     gaussian_filter_std_dev = func_alias(**kwargs)
@@ -308,9 +297,8 @@ def _check_and_convert_gaussian_filter_std_dev(params):
 
 
 
-def _pre_serialize_gaussian_filter_std_dev(
-        gaussian_filter_std_dev):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+def _pre_serialize_gaussian_filter_std_dev(gaussian_filter_std_dev):
+    obj_to_pre_serialize = gaussian_filter_std_dev
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -325,9 +313,7 @@ def _de_pre_serialize_gaussian_filter_std_dev(serializable_rep):
 
 
 def _check_and_convert_distortion_model(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "distortion_model"
     obj = params[obj_name]
 
     num_pixels_across_pattern = \
@@ -351,6 +337,8 @@ def _check_and_convert_distortion_model(params):
     sampling_grid_dims_in_pixels = \
         distortion_model_core_attrs["sampling_grid_dims_in_pixels"]
 
+    current_func_name = "_check_and_convert_distortion_model"
+
     if ((sampling_grid_dims_in_pixels[0]%num_pixels_across_pattern != 0)
         or (sampling_grid_dims_in_pixels[1]%num_pixels_across_pattern != 0)):
         err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -361,7 +349,7 @@ def _check_and_convert_distortion_model(params):
 
 
 def _pre_serialize_distortion_model(distortion_model):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = distortion_model
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -377,8 +365,7 @@ def _de_pre_serialize_distortion_model(serializable_rep):
 
 
 def _check_and_convert_num_pixels_across_pattern(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "num_pixels_across_pattern"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     num_pixels_across_pattern = czekitout.convert.to_positive_int(**kwargs)
 
@@ -387,7 +374,7 @@ def _check_and_convert_num_pixels_across_pattern(params):
 
 
 def _pre_serialize_num_pixels_across_pattern(num_pixels_across_pattern):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = num_pixels_across_pattern
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -402,8 +389,7 @@ def _de_pre_serialize_num_pixels_across_pattern(serializable_rep):
 
 
 def _check_and_convert_apply_shot_noise(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "apply_shot_noise"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     apply_shot_noise = czekitout.convert.to_bool(**kwargs)
 
@@ -412,7 +398,7 @@ def _check_and_convert_apply_shot_noise(params):
 
 
 def _pre_serialize_apply_shot_noise(apply_shot_noise):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = apply_shot_noise
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -427,8 +413,7 @@ def _de_pre_serialize_apply_shot_noise(serializable_rep):
 
 
 def _check_and_convert_detector_partition_width_in_pixels(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "detector_partition_width_in_pixels"
     func_alias = czekitout.convert.to_nonnegative_int
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     detector_partition_width_in_pixels = func_alias(**kwargs)
@@ -439,7 +424,7 @@ def _check_and_convert_detector_partition_width_in_pixels(params):
 
 def _pre_serialize_detector_partition_width_in_pixels(
         detector_partition_width_in_pixels):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = detector_partition_width_in_pixels
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -454,13 +439,14 @@ def _de_pre_serialize_detector_partition_width_in_pixels(serializable_rep):
 
 
 def _check_and_convert_cold_pixels(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "cold_pixels"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     cold_pixels = czekitout.convert.to_pairs_of_ints(**kwargs)
 
     num_pixels_across_pattern = \
         _check_and_convert_num_pixels_across_pattern(params)
+
+    current_func_name = "_check_and_convert_cold_pixels"
 
     coords_of_cold_pixels = cold_pixels
     for coords_of_cold_pixel in coords_of_cold_pixels:
@@ -491,8 +477,7 @@ def _de_pre_serialize_cold_pixels(serializable_rep):
 
 
 def _check_and_convert_mask_frame(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "mask_frame"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     mask_frame = czekitout.convert.to_quadruplet_of_nonnegative_ints(**kwargs)
 
@@ -501,7 +486,7 @@ def _check_and_convert_mask_frame(params):
 
 
 def _pre_serialize_mask_frame(mask_frame):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = mask_frame
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -516,8 +501,7 @@ def _de_pre_serialize_mask_frame(serializable_rep):
 
 
 def _check_and_convert_deep_copy(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "deep_copy"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     deep_copy = czekitout.convert.to_bool(**kwargs)
 
@@ -526,9 +510,7 @@ def _check_and_convert_deep_copy(params):
 
 
 def _check_and_convert_overriding_image(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "overriding_image"
     obj = params[obj_name]
 
     func_alias = fakecbed.shapes._check_and_convert_real_torch_matrix
@@ -541,6 +523,8 @@ def _check_and_convert_overriding_image(params):
 
     num_pixels_across_pattern = params["num_pixels_across_pattern"]
     expected_image_dims_in_pixels = 2*(num_pixels_across_pattern,)
+
+    current_func_name = "_check_and_convert_overriding_image"
 
     if overriding_image.shape != expected_image_dims_in_pixels:
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -908,7 +892,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         \text{det}\left(\mathbf{J}_{\square}\left(
         q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right)\right)
-        \mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}.
+        \left|\mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}\right|.
         :label: HD_I_CBED__3
 
     8. Apply average pooling to
@@ -1670,21 +1654,20 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         method_name = ("_calc_maskless_and_noiseless_image"
                        "_and_cache_select_intermediates")
         method_alias = getattr(self, method_name)
-        maskless_and_noiseless_image = method_alias(u_x, u_y)
+        image = method_alias(u_x, u_y)
 
+        apply_shot_noise = self._apply_shot_noise
+        image = torch.poisson(image) if (apply_shot_noise == True) else image
+
+        image = self._apply_detector_partition_inpainting(input_image=image)
+            
         if self._illumination_support is None:
             method_name = "_calc_illumination_support"
             method_alias = getattr(self, method_name)
             self._illumination_support = method_alias(u_x, u_y)
         illumination_support = self._illumination_support
 
-        noiseless_image = maskless_and_noiseless_image*illumination_support
-
-        apply_shot_noise = self._apply_shot_noise
-
-        image = (torch.poisson(noiseless_image)
-                 if (apply_shot_noise == True)
-                 else noiseless_image)
+        image = image*illumination_support        
 
         coords_of_cold_pixels = self._cold_pixels
         L, R, B, T = self._mask_frame
@@ -1698,8 +1681,6 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         for coords_of_cold_pixel in coords_of_cold_pixels:
             image[coords_of_cold_pixel] = 0
 
-        image = self._apply_detector_partition_inpainting(input_image=image)
-            
         image = self._normalize_matrix(input_matrix=image)
 
         image = torch.clip(image, min=0)
@@ -1731,6 +1712,8 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         maskless_and_noiseless_image = (bg
                                         + (disk_supports
                                            * intra_disk_shapes).sum(dim=0))
+
+        maskless_and_noiseless_image = torch.abs(maskless_and_noiseless_image)
 
         kwargs = {"input_matrix": maskless_and_noiseless_image,
                   "truncate": 4}

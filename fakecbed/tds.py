@@ -8,12 +8,6 @@
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
-# For randomly selecting items in dictionaries.
-import random
-
 # For performing deep copies.
 import copy
 
@@ -50,12 +44,12 @@ __all__ = ["Model"]
 
 
 def _check_and_convert_peaks(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "peaks"
     obj = params[obj_name]
 
     accepted_types = (fakecbed.shapes.Peak,)
+
+    current_func_name = "_check_and_convert_peaks"
 
     try:
         for peak in obj:
@@ -74,7 +68,7 @@ def _check_and_convert_peaks(params):
 
 
 def _pre_serialize_peaks(peaks):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = peaks
     serializable_rep = tuple()
     for elem in obj_to_pre_serialize:
         serializable_rep += (elem.pre_serialize(),)
@@ -94,8 +88,7 @@ def _de_pre_serialize_peaks(serializable_rep):
 
 
 def _check_and_convert_constant_bg(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "constant_bg"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     constant_bg = czekitout.convert.to_nonnegative_float(**kwargs)
 
@@ -104,7 +97,7 @@ def _check_and_convert_constant_bg(params):
 
 
 def _pre_serialize_constant_bg(constant_bg):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = constant_bg
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep

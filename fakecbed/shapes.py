@@ -58,12 +58,6 @@ coordinate transformation that maps a coordinate pair
 ## Load libraries/packages/modules ##
 #####################################
 
-# For accessing attributes of functions.
-import inspect
-
-# For randomly selecting items in dictionaries.
-import random
-
 # For performing deep copies.
 import copy
 
@@ -109,9 +103,7 @@ __all__ = ["BaseShape",
 
 
 def _check_and_convert_cartesian_coords(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "cartesian_coords"
     obj = params[obj_name]
 
     u_x, u_y = obj
@@ -127,6 +119,8 @@ def _check_and_convert_cartesian_coords(params):
     del params["real_torch_matrix"]
     del params["name_of_alias_of_real_torch_matrix"]
 
+    current_func_name = "_check_and_convert_cartesian_coords"
+
     if u_x.shape != u_y.shape:
         unformatted_err_msg = globals()[current_func_name+"_err_msg_1"]
         err_msg = unformatted_err_msg.format("u_x", "u_y")
@@ -139,13 +133,13 @@ def _check_and_convert_cartesian_coords(params):
 
 
 def _check_and_convert_real_torch_matrix(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "real_torch_matrix"
     obj = params[obj_name]
     
     name_of_alias_of_real_torch_matrix = \
         params["name_of_alias_of_real_torch_matrix"]
+
+    current_func_name = "_check_and_convert_real_torch_matrix"
 
     try:
         if not isinstance(obj, torch.Tensor):
@@ -201,8 +195,7 @@ def _check_and_convert_torch_device_obj(params):
 
 
 def _check_and_convert_skip_validation_and_conversion(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "skip_validation_and_conversion"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     skip_validation_and_conversion = czekitout.convert.to_bool(**kwargs)
 
@@ -346,8 +339,7 @@ class BaseShape(fancytypes.PreSerializableAndUpdatable):
 
 
 def _check_and_convert_center(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "center"
 
     cls_alias = \
         distoptica.CoordTransformParams
@@ -363,9 +355,8 @@ def _check_and_convert_center(params):
 
 
 def _pre_serialize_center(center):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[15:]
+    obj_to_pre_serialize = center
+    obj_name = "center"
 
     cls_alias = \
         distoptica.CoordTransformParams
@@ -381,8 +372,7 @@ def _pre_serialize_center(center):
 
 
 def _de_pre_serialize_center(serializable_rep):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[18:]
+    obj_name = "center"
 
     cls_alias = \
         distoptica.CoordTransformParams
@@ -398,8 +388,7 @@ def _de_pre_serialize_center(serializable_rep):
 
 
 def _check_and_convert_radius(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "radius"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     radius = czekitout.convert.to_positive_float(**kwargs)
 
@@ -408,7 +397,7 @@ def _check_and_convert_radius(params):
 
 
 def _pre_serialize_radius(radius):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = radius
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -423,8 +412,7 @@ def _de_pre_serialize_radius(serializable_rep):
 
 
 def _check_and_convert_intra_shape_val(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "intra_shape_val"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     intra_shape_val = czekitout.convert.to_float(**kwargs)
 
@@ -433,7 +421,7 @@ def _check_and_convert_intra_shape_val(params):
 
 
 def _pre_serialize_intra_shape_val(intra_shape_val):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = intra_shape_val
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -587,8 +575,7 @@ class Circle(BaseShape):
 
 
 def _check_and_convert_semi_major_axis(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "semi_major_axis"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     semi_major_axis = czekitout.convert.to_positive_float(**kwargs)
 
@@ -597,7 +584,7 @@ def _check_and_convert_semi_major_axis(params):
 
 
 def _pre_serialize_semi_major_axis(semi_major_axis):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = semi_major_axis
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -612,11 +599,12 @@ def _de_pre_serialize_semi_major_axis(serializable_rep):
 
 
 def _check_and_convert_eccentricity(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "eccentricity"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     eccentricity = czekitout.convert.to_nonnegative_float(**kwargs)
 
+    current_func_name = "_check_and_convert_eccentricity"
+    
     if eccentricity > 1:
         err_msg = globals()[current_func_name+"_err_msg_1"]
         raise ValueError(err_msg)
@@ -626,7 +614,7 @@ def _check_and_convert_eccentricity(params):
 
 
 def _pre_serialize_eccentricity(eccentricity):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = eccentricity
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -641,8 +629,7 @@ def _de_pre_serialize_eccentricity(serializable_rep):
 
 
 def _check_and_convert_rotation_angle(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "rotation_angle"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     rotation_angle = czekitout.convert.to_float(**kwargs) % (2*np.pi)
 
@@ -651,7 +638,7 @@ def _check_and_convert_rotation_angle(params):
 
 
 def _pre_serialize_rotation_angle(rotation_angle):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = rotation_angle
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -855,8 +842,7 @@ class Ellipse(BaseShape):
 
 
 def _check_and_convert_widths(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "widths"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     widths = czekitout.convert.to_quadruplet_of_positive_floats(**kwargs)
 
@@ -865,7 +851,7 @@ def _check_and_convert_widths(params):
 
 
 def _pre_serialize_widths(widths):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = widths
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -880,8 +866,7 @@ def _de_pre_serialize_widths(serializable_rep):
 
 
 def _check_and_convert_val_at_center(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "val_at_center"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     val_at_center = czekitout.convert.to_float(**kwargs)
 
@@ -890,7 +875,7 @@ def _check_and_convert_val_at_center(params):
 
 
 def _pre_serialize_val_at_center(val_at_center):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = val_at_center
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -905,8 +890,7 @@ def _de_pre_serialize_val_at_center(serializable_rep):
 
 
 def _check_and_convert_functional_form(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "functional_form"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     functional_form = czekitout.convert.to_str_from_str_like(**kwargs)
 
@@ -921,7 +905,7 @@ def _check_and_convert_functional_form(params):
 
 
 def _pre_serialize_functional_form(functional_form):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = functional_form
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1218,8 +1202,7 @@ class Peak(BaseShape):
 
 
 def _check_and_convert_end_pt_1(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "end_pt_1"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     end_pt_1 = czekitout.convert.to_pair_of_floats(**kwargs)
 
@@ -1228,7 +1211,7 @@ def _check_and_convert_end_pt_1(params):
 
 
 def _pre_serialize_end_pt_1(end_pt_1):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = end_pt_1
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1243,8 +1226,7 @@ def _de_pre_serialize_end_pt_1(serializable_rep):
 
 
 def _check_and_convert_end_pt_2(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "end_pt_2"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     end_pt_2 = czekitout.convert.to_pair_of_floats(**kwargs)
 
@@ -1253,7 +1235,7 @@ def _check_and_convert_end_pt_2(params):
 
 
 def _pre_serialize_end_pt_2(end_pt_2):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = end_pt_2
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1268,8 +1250,7 @@ def _de_pre_serialize_end_pt_2(serializable_rep):
 
 
 def _check_and_convert_width(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "width"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     width = czekitout.convert.to_positive_float(**kwargs)
 
@@ -1278,7 +1259,7 @@ def _check_and_convert_width(params):
 
 
 def _pre_serialize_width(width):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = width
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1597,8 +1578,7 @@ class Band(BaseShape):
 
 
 def _check_and_convert_amplitude(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "amplitude"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     amplitude = czekitout.convert.to_float(**kwargs)
 
@@ -1607,7 +1587,7 @@ def _check_and_convert_amplitude(params):
 
 
 def _pre_serialize_amplitude(amplitude):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = amplitude
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1622,8 +1602,7 @@ def _de_pre_serialize_amplitude(serializable_rep):
 
 
 def _check_and_convert_wavelength(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "wavelength"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     wavelength = czekitout.convert.to_positive_float(**kwargs)
 
@@ -1632,7 +1611,7 @@ def _check_and_convert_wavelength(params):
 
 
 def _pre_serialize_wavelength(wavelength):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = wavelength
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1647,8 +1626,7 @@ def _de_pre_serialize_wavelength(serializable_rep):
 
 
 def _check_and_convert_propagation_direction(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "propagation_direction"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     propagation_direction = czekitout.convert.to_float(**kwargs) % (2*np.pi)
 
@@ -1657,7 +1635,7 @@ def _check_and_convert_propagation_direction(params):
 
 
 def _pre_serialize_propagation_direction(propagation_direction):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = propagation_direction
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1672,8 +1650,7 @@ def _de_pre_serialize_propagation_direction(serializable_rep):
 
 
 def _check_and_convert_phase(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "phase"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     phase = czekitout.convert.to_float(**kwargs)
 
@@ -1682,7 +1659,7 @@ def _check_and_convert_phase(params):
 
 
 def _pre_serialize_phase(phase):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = phase
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1855,8 +1832,7 @@ class PlaneWave(BaseShape):
 
 
 def _check_and_convert_midpoint_angle(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "midpoint_angle"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     midpoint_angle = czekitout.convert.to_float(**kwargs) % (2*np.pi)
 
@@ -1865,7 +1841,7 @@ def _check_and_convert_midpoint_angle(params):
 
 
 def _pre_serialize_midpoint_angle(midpoint_angle):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = midpoint_angle
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1880,8 +1856,7 @@ def _de_pre_serialize_midpoint_angle(serializable_rep):
 
 
 def _check_and_convert_subtending_angle(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "subtending_angle"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     subtending_angle = min(abs(czekitout.convert.to_float(**kwargs)), (2*np.pi))
 
@@ -1890,7 +1865,7 @@ def _check_and_convert_subtending_angle(params):
 
 
 def _pre_serialize_subtending_angle(subtending_angle):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = subtending_angle
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -1905,14 +1880,14 @@ def _de_pre_serialize_subtending_angle(serializable_rep):
 
 
 def _check_and_convert_radial_range(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "radial_range"
     obj = params[obj_name]
 
     func_alias = czekitout.convert.to_pair_of_positive_floats
     kwargs = {"obj": obj, "obj_name": obj_name}
     radial_range = func_alias(**kwargs)
+
+    current_func_name = "_check_and_convert_radial_range"
 
     if radial_range[0] >= radial_range[1]:
         err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -1923,7 +1898,7 @@ def _check_and_convert_radial_range(params):
 
 
 def _pre_serialize_radial_range(radial_range):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = radial_range
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2124,8 +2099,7 @@ class Arc(BaseShape):
 
 
 def _check_and_convert_radial_reference_pt(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "radial_reference_pt"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     radial_reference_pt = czekitout.convert.to_pair_of_floats(**kwargs)
 
@@ -2134,7 +2108,7 @@ def _check_and_convert_radial_reference_pt(params):
 
 
 def _pre_serialize_radial_reference_pt(radial_reference_pt):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = radial_reference_pt
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2149,12 +2123,13 @@ def _de_pre_serialize_radial_reference_pt(serializable_rep):
 
 
 def _check_and_convert_radial_amplitudes(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "radial_amplitudes"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     func_alias = czekitout.convert.to_tuple_of_nonnegative_floats
     radial_amplitudes = func_alias(**kwargs)
 
+    current_func_name = "_check_and_convert_radial_amplitudes"
+    
     num_radial_amplitudes = len(radial_amplitudes)
     if num_radial_amplitudes == 0:
         err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -2170,7 +2145,7 @@ def _check_and_convert_radial_amplitudes(params):
 
 
 def _pre_serialize_radial_amplitudes(radial_amplitudes):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = radial_amplitudes
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2185,8 +2160,7 @@ def _de_pre_serialize_radial_amplitudes(serializable_rep):
 
 
 def _check_and_convert_radial_phases(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "radial_phases"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     radial_phases = czekitout.convert.to_tuple_of_floats(**kwargs)
     radial_phases = tuple(radial_phase%(2*np.pi)
@@ -2198,6 +2172,8 @@ def _check_and_convert_radial_phases(params):
     num_radial_phases = len(radial_phases)
     num_radial_amplitudes = len(radial_amplitudes)
 
+    current_func_name = "_check_and_convert_radial_phases"
+
     if num_radial_phases+1 != num_radial_amplitudes:
         err_msg = globals()[current_func_name+"_err_msg_1"]
         raise ValueError(err_msg)
@@ -2207,7 +2183,7 @@ def _check_and_convert_radial_phases(params):
 
 
 def _pre_serialize_radial_phases(radial_phases):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = radial_phases
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2414,8 +2390,7 @@ class GenericBlob(BaseShape):
 
 
 def _check_and_convert_principal_quantum_number(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "principal_quantum_number"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     principal_quantum_number = czekitout.convert.to_positive_int(**kwargs)
 
@@ -2424,7 +2399,7 @@ def _check_and_convert_principal_quantum_number(params):
 
 
 def _pre_serialize_principal_quantum_number(principal_quantum_number):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = principal_quantum_number
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2439,13 +2414,14 @@ def _de_pre_serialize_principal_quantum_number(serializable_rep):
 
 
 def _check_and_convert_azimuthal_quantum_number(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "azimuthal_quantum_number"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     azimuthal_quantum_number = czekitout.convert.to_nonnegative_int(**kwargs)
 
     principal_quantum_number = \
         _check_and_convert_principal_quantum_number(params)
+
+    current_func_name = "_check_and_convert_azimuthal_quantum_number"
 
     if azimuthal_quantum_number >= principal_quantum_number:
         err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -2456,7 +2432,7 @@ def _check_and_convert_azimuthal_quantum_number(params):
 
 
 def _pre_serialize_azimuthal_quantum_number(azimuthal_quantum_number):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = azimuthal_quantum_number
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2471,13 +2447,14 @@ def _de_pre_serialize_azimuthal_quantum_number(serializable_rep):
 
 
 def _check_and_convert_magnetic_quantum_number(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "magnetic_quantum_number"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     magnetic_quantum_number = czekitout.convert.to_int(**kwargs)
 
     azimuthal_quantum_number = \
         _check_and_convert_azimuthal_quantum_number(params)
+
+    current_func_name = "_check_and_convert_magnetic_quantum_number"
 
     if abs(magnetic_quantum_number) > azimuthal_quantum_number:
         err_msg = globals()[current_func_name+"_err_msg_1"]
@@ -2488,7 +2465,7 @@ def _check_and_convert_magnetic_quantum_number(params):
 
 
 def _pre_serialize_magnetic_quantum_number(magnetic_quantum_number):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = magnetic_quantum_number
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2503,8 +2480,7 @@ def _de_pre_serialize_magnetic_quantum_number(serializable_rep):
 
 
 def _check_and_convert_effective_size(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "effective_size"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     effective_size = czekitout.convert.to_positive_float(**kwargs)
 
@@ -2513,7 +2489,7 @@ def _check_and_convert_effective_size(params):
 
 
 def _pre_serialize_effective_size(effective_size):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = effective_size
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2528,8 +2504,7 @@ def _de_pre_serialize_effective_size(serializable_rep):
 
 
 def _check_and_convert_renormalization_factor(params):
-    current_func_name = inspect.stack()[0][3]
-    obj_name = current_func_name[19:]
+    obj_name = "renormalization_factor"
     kwargs = {"obj": params[obj_name], "obj_name": obj_name}
     renormalization_factor = czekitout.convert.to_float(**kwargs)
 
@@ -2538,7 +2513,7 @@ def _check_and_convert_renormalization_factor(params):
 
 
 def _pre_serialize_renormalization_factor(renormalization_factor):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = renormalization_factor
     serializable_rep = obj_to_pre_serialize
     
     return serializable_rep
@@ -2964,9 +2939,7 @@ class Orbital(BaseShape):
 
 
 def _check_and_convert_bg_ellipse(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "bg_ellipse"
     obj = params[obj_name]
 
     accepted_types = (Ellipse, Circle, type(None))
@@ -2985,7 +2958,7 @@ def _check_and_convert_bg_ellipse(params):
 
 
 def _pre_serialize_bg_ellipse(bg_ellipse):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = bg_ellipse
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -3003,9 +2976,7 @@ def _de_pre_serialize_bg_ellipse(serializable_rep):
 
 
 def _check_and_convert_fg_ellipse(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "fg_ellipse"
     obj = params[obj_name]
 
     accepted_types = (Ellipse, Circle, type(None))
@@ -3024,7 +2995,7 @@ def _check_and_convert_fg_ellipse(params):
 
 
 def _pre_serialize_fg_ellipse(fg_ellipse):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = fg_ellipse
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -3173,9 +3144,7 @@ class Lune(BaseShape):
 
 
 def _check_and_convert_support(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "support"
     obj = params[obj_name]
 
     accepted_types = (Circle, Ellipse, Band, Arc, GenericBlob, Lune, type(None))
@@ -3194,7 +3163,7 @@ def _check_and_convert_support(params):
 
 
 def _pre_serialize_support(support):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = support
     serializable_rep = obj_to_pre_serialize.pre_serialize()
     
     return serializable_rep
@@ -3220,9 +3189,7 @@ def _de_pre_serialize_support(serializable_rep):
 
 
 def _check_and_convert_intra_support_shapes(params):
-    current_func_name = inspect.stack()[0][3]
-    char_idx = 19
-    obj_name = current_func_name[char_idx:]
+    obj_name = "intra_support_shapes"
     obj = params[obj_name]
 
     accepted_types = (Circle,
@@ -3235,6 +3202,8 @@ def _check_and_convert_intra_support_shapes(params):
                       Orbital,
                       Lune,
                       NonuniformBoundedShape)
+
+    current_func_name = "_check_and_convert_intra_support_shapes"
 
     try:
         for intra_support_shape in obj:
@@ -3253,7 +3222,7 @@ def _check_and_convert_intra_support_shapes(params):
 
 
 def _pre_serialize_intra_support_shapes(intra_support_shapes):
-    obj_to_pre_serialize = random.choice(list(locals().values()))
+    obj_to_pre_serialize = intra_support_shapes
     serializable_rep = tuple()
     for elem in obj_to_pre_serialize:
         serializable_rep += (elem.pre_serialize(),)
