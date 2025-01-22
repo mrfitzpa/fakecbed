@@ -412,6 +412,41 @@ def _de_pre_serialize_apply_shot_noise(serializable_rep):
 
 
 
+def _check_and_convert_rng_seed(params):
+    obj_name = "rng_seed"
+    obj = params[obj_name]
+
+    current_func_name = "_check_and_convert_rng_seed"
+    
+    if obj is not None:
+        kwargs = {"obj": obj, "obj_name": obj_name}
+        try:
+            rng_seed = czekitout.convert.to_nonnegative_int(**kwargs)
+        except:
+            err_msg = globals()[current_func_name+"_err_msg_1"]
+            raise TypeError(err_msg)
+    else:
+        rng_seed = obj
+
+    return rng_seed
+
+
+
+def _pre_serialize_rng_seed(rng_seed):
+    obj_to_pre_serialize = rng_seed
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_rng_seed(serializable_rep):
+    rng_seed = serializable_rep
+
+    return rng_seed
+
+
+
 def _check_and_convert_detector_partition_width_in_pixels(params):
     obj_name = "detector_partition_width_in_pixels"
     func_alias = czekitout.convert.to_nonnegative_int
@@ -562,6 +597,8 @@ _default_num_pixels_across_pattern = \
     512
 _default_apply_shot_noise = \
     False
+_default_rng_seed = \
+    None
 _default_detector_partition_width_in_pixels = \
     0
 _default_cold_pixels = \
@@ -1035,6 +1072,9 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         If ``apply_shot_noise`` is set to ``True``, then shot noise is applied
         to the image of the fake CBED pattern. Otherwise, no shot noise is
         applied.
+    rng_seed : `int` | `None`, optional
+        ``rng_seed`` specifies the seed used in the random number generator used
+        to apply shot noise.
     detector_partition_width_in_pixels : `int`, optional
         The detector partition width in units of pixels,
         :math:`N_{\text{DPW}}`. Must be nonnegative.
@@ -1057,6 +1097,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
                         "num_pixels_across_pattern",
                         "distortion_model",
                         "apply_shot_noise",
+                        "rng_seed",
                         "detector_partition_width_in_pixels",
                         "cold_pixels",
                         "mask_frame")
@@ -1091,6 +1132,8 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
                  _default_distortion_model,
                  apply_shot_noise=\
                  _default_apply_shot_noise,
+                 rng_seed=\
+                 _default_rng_seed,
                  detector_partition_width_in_pixels=\
                  _default_detector_partition_width_in_pixels,
                  cold_pixels=\
@@ -1657,7 +1700,11 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         image = method_alias(u_x, u_y)
 
         apply_shot_noise = self._apply_shot_noise
-        image = torch.poisson(image) if (apply_shot_noise == True) else image
+        if apply_shot_noise == True:
+            np_rng = np.random.default_rng(self._rng_seed)
+            torch_rng_seed = np_rng.integers(low=0, high=2**32-1).item()
+            torch_rng = torch.Generator().manual_seed(torch_rng_seed)
+            image = torch.poisson(image, torch_rng)
 
         image = self._apply_detector_partition_inpainting(input_image=image)
             
@@ -2521,6 +2568,10 @@ _check_and_convert_distortion_model_err_msg_1 = \
     ("The dimensions, in units of pixels, of the distortion model sampling "
      "grid, specified by the object ``distortion_model``,  must be divisible "
      "by the object ``num_pixels_across_pattern``.")
+
+_check_and_convert_rng_seed_err_msg_1 = \
+    ("The object ``rng_seed`` must be either a nonnegative integer or of the "
+     "type `NoneType`.")
 
 _check_and_convert_cold_pixels_err_msg_1 = \
     ("The object ``cold_pixels`` must be a sequence of integer pairs, where "

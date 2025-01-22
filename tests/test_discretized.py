@@ -85,6 +85,8 @@ def generate_cbed_pattern_ctor_params():
                                 distortion_model,
                                 "apply_shot_noise": \
                                 True,
+                                "rng_seed": \
+                                5,
                                 "detector_partition_width_in_pixels": \
                                 4,
                                 "cold_pixels": \
@@ -625,6 +627,33 @@ def test_7_of_CBEDPattern():
 
     cbed_pattern = generate_cbed_pattern()
     cbed_pattern.disk_overlap_map
+    
+    return None
+
+
+
+def test_8_of_CBEDPattern():
+    cbed_pattern_1 = generate_cbed_pattern()
+    cbed_pattern_2 = generate_cbed_pattern()
+
+    signal_1 = cbed_pattern_1.signal
+    signal_2 = cbed_pattern_2.signal
+
+    assert np.all(signal_1.data == signal_2.data)
+
+    new_core_attr_subset_candidate = {"rng_seed": None}
+    cbed_pattern_1.update(new_core_attr_subset_candidate)
+
+    cbed_pattern_1.signal
+
+    with pytest.raises(TypeError) as err_info:
+        new_core_attr_subset_candidate = {"rng_seed": -1}
+        cbed_pattern_1.update(new_core_attr_subset_candidate)
+
+    new_core_attr_subset_candidate = {"apply_shot_noise": False}
+    cbed_pattern_1.update(new_core_attr_subset_candidate)
+
+    cbed_pattern_1.signal
     
     return None
 
