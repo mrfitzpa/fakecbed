@@ -1703,7 +1703,8 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         if apply_shot_noise == True:
             np_rng = np.random.default_rng(self._rng_seed)
             torch_rng_seed = np_rng.integers(low=0, high=2**32-1).item()
-            torch_rng = torch.Generator().manual_seed(torch_rng_seed)
+            torch_rng = torch.Generator(device=u_x.device)
+            torch_rng = torch_rng.manual_seed(torch_rng_seed)
             image = torch.poisson(image, torch_rng)
 
         image = self._apply_detector_partition_inpainting(input_image=image)
