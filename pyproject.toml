@@ -34,7 +34,7 @@ keywords = [
     "cbed"
 ]
 dependencies = [
-    "distoptica>=0.3.0",
+    "distoptica>=0.3.3",
     "hyperspy[all]"
 ]
 requires-python = ">=3.8"
