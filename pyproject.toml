@@ -35,7 +35,7 @@ keywords = [
 ]
 dependencies = [
     "distoptica>=0.3.3",
-    "hyperspy[all]"
+    "hyperspy"
 ]
 requires-python = ">=3.8"
 
