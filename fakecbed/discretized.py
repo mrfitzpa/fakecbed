@@ -1482,6 +1482,11 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         illumination_support = self._illumination_support.cpu().detach().clone()
         illumination_support = illumination_support.numpy(force=True)
 
+        if self._disk_supports is None:
+            method_name = ("_calc_disk_supports"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._disk_supports = method_alias(u_x, u_y)
         disk_supports = self._disk_supports.numpy(force=True)
 
         num_disks = self._num_disks
@@ -1701,11 +1706,12 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
         apply_shot_noise = self._apply_shot_noise
         if apply_shot_noise == True:
-            np_rng = np.random.default_rng(self._rng_seed)
-            torch_rng_seed = np_rng.integers(low=0, high=2**32-1).item()
-            torch_rng = torch.Generator(device=u_x.device)
-            torch_rng = torch_rng.manual_seed(torch_rng_seed)
-            image = torch.poisson(image, torch_rng)
+            # ``torch.poisson`` was occasionally causing CUDA errors.
+            rng = np.random.default_rng(self._rng_seed)
+            image = image.numpy(force=True)
+            image = rng.poisson(image)
+            image = torch.from_numpy(image)
+            image = image.to(device=self._device, dtype=image.dtype)
 
         image = self._apply_detector_partition_inpainting(input_image=image)
             

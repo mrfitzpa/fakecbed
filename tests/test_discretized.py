@@ -659,6 +659,24 @@ def test_8_of_CBEDPattern():
 
 
 
+def test_9_of_CBEDPattern():
+    cbed_pattern = fakecbed.discretized.CBEDPattern()
+
+    num_pixels_across_pattern = \
+        cbed_pattern.core_attrs["num_pixels_across_pattern"]
+
+    overriding_image = np.zeros(2*(num_pixels_across_pattern,))
+
+    kwargs = {"overriding_image": overriding_image,
+              "skip_validation_and_conversion": False}
+    cbed_pattern.override_image_then_reapply_mask(**kwargs)
+
+    cbed_pattern_signal = cbed_pattern.get_signal(deep_copy=False)
+    
+    return None
+
+
+
 ###########################
 ## Define error messages ##
 ###########################
