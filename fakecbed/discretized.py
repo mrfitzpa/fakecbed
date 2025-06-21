@@ -1708,10 +1708,11 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         if apply_shot_noise == True:
             # ``torch.poisson`` was occasionally causing CUDA errors.
             rng = np.random.default_rng(self._rng_seed)
+            image_dtype = image.dtype
             image = image.numpy(force=True)
             image = rng.poisson(image)
             image = torch.from_numpy(image)
-            image = image.to(device=self._device, dtype=image.dtype)
+            image = image.to(device=self._device, dtype=image_dtype)
 
         image = self._apply_detector_partition_inpainting(input_image=image)
             
@@ -1721,7 +1722,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
             self._illumination_support = method_alias(u_x, u_y)
         illumination_support = self._illumination_support
 
-        image = image*illumination_support        
+        image = image*illumination_support
 
         coords_of_cold_pixels = self._cold_pixels
         L, R, B, T = self._mask_frame
