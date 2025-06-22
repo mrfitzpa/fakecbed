@@ -1709,7 +1709,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
             # ``torch.poisson`` was occasionally causing CUDA errors.
             rng = np.random.default_rng(self._rng_seed)
             image_dtype = image.dtype
-            image = image.numpy(force=True)
+            image = image.numpy(force=True).clip(min=0, max=1.0e15)
             image = rng.poisson(image)
             image = torch.from_numpy(image)
             image = image.to(device=self._device, dtype=image_dtype)
