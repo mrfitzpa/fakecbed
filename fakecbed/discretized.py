@@ -48,6 +48,9 @@ import distoptica
 # For inpainting images.
 import skimage.restoration
 
+# For cropping hyperspy signals.
+import empix
+
 
 
 # For creating undistorted geometric shapes.
@@ -63,7 +66,8 @@ import fakecbed.tds
 ##################################
 
 # List of public objects in module.
-__all__ = ["CBEDPattern"]
+__all__ = ["CBEDPattern",
+           "CroppedCBEDPattern"]
 
 
 
@@ -613,8 +617,7 @@ _default_mask_frame = \
 
 
 class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
-    r"""The parameters of a discretized fake convergent beam electron 
-    diffraction (CBED) pattern.
+    r"""A discretized fake convergent beam electron diffraction (CBED) pattern.
 
     A series of parameters need to be specified in order to create an image of a
     fake CBED pattern, with the most important parameters being: the set of
@@ -640,7 +643,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
     model, represented by an instance of the class
     :class:`distoptica.DistortionModel`, they also specify a coordinate
     transformation, :math:`\left(T_{⌑;x}\left(u_{x},u_{y}\right),
-    T_{⌑;x}\left(u_{x},u_{y}\right)\right)`, which maps a given coordinate pair
+    T_{⌑;y}\left(u_{x},u_{y}\right)\right)`, which maps a given coordinate pair
     :math:`\left(u_{x},u_{y}\right)` to a corresponding coordinate pair
     :math:`\left(q_{x},q_{y}\right)`, and implicitly a right-inverse to said
     coordinate transformation,
@@ -1005,8 +1008,9 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
     .. math ::
         \Omega_{k;\text{DCR};⌑}\leftarrow\begin{cases}
-        \text{True}, & \text{if }\sum_{n,m}\mathcal{I}_{k;\text{DCM};⌑;n,m}
-        \neq0,\\
+        \text{True}, & \text{if }
+        \left(\sum_{n,m}\mathcal{I}_{k;\text{DCM};⌑;n,m}\neq0\right)\bigparallel
+        \left(\sum_{n,m}\mathcal{I}_{k;\text{DS};⌑;n,m}=0\right),\\
         \text{False}, & \text{otherwise},
         \end{cases}
         :label: Omega_k_DCR__1
@@ -1087,6 +1091,32 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         right, bottom, and top sides of the mask frame respectively. If all
         elements of ``mask_frame`` are zero, then no pixels in the image of the
         target fake CBED pattern are masked by the mask frame.
+    skip_validation_and_conversion : `bool`, optional
+        Let ``validation_and_conversion_funcs`` and ``core_attrs`` denote the
+        attributes :attr:`~fancytypes.Checkable.validation_and_conversion_funcs`
+        and :attr:`~fancytypes.Checkable.core_attrs` respectively, both of which
+        being `dict` objects.
+
+        Let ``params_to_be_mapped_to_core_attrs`` denote the `dict`
+        representation of the constructor parameters excluding the parameter
+        ``skip_validation_and_conversion``, where each `dict` key ``key`` is a
+        different constructor parameter name, excluding the name
+        ``"skip_validation_and_conversion"``, and
+        ``params_to_be_mapped_to_core_attrs[key]`` would yield the value of the
+        constructor parameter with the name given by ``key``.
+
+        If ``skip_validation_and_conversion`` is set to ``False``, then for each
+        key ``key`` in ``params_to_be_mapped_to_core_attrs``,
+        ``core_attrs[key]`` is set to ``validation_and_conversion_funcs[key]
+        (params_to_be_mapped_to_core_attrs)``.
+
+        Otherwise, if ``skip_validation_and_conversion`` is set to ``True``,
+        then ``core_attrs`` is set to
+        ``params_to_be_mapped_to_core_attrs.copy()``. This option is desired
+        primarily when the user wants to avoid potentially expensive deep copies
+        and/or conversions of the `dict` values of
+        ``params_to_be_mapped_to_core_attrs``, as it is guaranteed that no
+        copies or conversions are made in this case.
 
     """
     ctor_param_names = ("undistorted_tds_model",
@@ -1221,7 +1251,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
     def num_disks(self):
         r"""`int`: The total number of CBED disks defined, :math:`N_{\text{D}}`.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context.
 
         Let ``core_attrs`` denote the attribute
@@ -1259,7 +1289,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
             _default_skip_validation_and_conversion):
         r"""Override the target fake CBED pattern image and reapply masking.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context.
 
         Let ``image``, ``illumination_support``, and ``core_attrs`` denote the
@@ -1655,20 +1685,17 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
             clip_support = torch.unsqueeze(clip_support, dim=0)
         clip_support = clip_support.to(dtype=torch.float)
 
-        conv_weights = torch.ones((1, 1, 5, 5),
+        conv_weights = torch.ones((1, 1, 3, 3),
                                   device=illumination_support.device)
 
         kwargs = {"input": clip_support,
                   "weight": conv_weights,
                   "padding": "same"}
-        clip_support = (torch.nn.functional.conv2d(**kwargs) != 0)
-
-        clip_support = clip_support.to(dtype=torch.bool)
-        clip_support[0, 0, :T+2, :] = True
-        clip_support[0, 0, max(N_I_y-B-2, 0):, :] = True
-        clip_support[0, 0, :, :L+2] = True
-        clip_support[0, 0, :, max(N_I_x-R-2, 0):] = True
-        clip_support = clip_support[0, 0]
+        clip_support = (torch.nn.functional.conv2d(**kwargs) != 0)[0, 0]        
+        clip_support[:T+1, :] = True
+        clip_support[max(N_I_y-B-1, 0):, :] = True
+        clip_support[:, :L+1] = True
+        clip_support[:, max(N_I_x-R-1, 0):] = True
 
         return clip_support
 
@@ -1737,8 +1764,6 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
             image[coords_of_cold_pixel] = 0
 
         image = self._normalize_matrix(input_matrix=image)
-
-        image = torch.clip(image, min=0)
 
         return image
 
@@ -1993,7 +2018,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         r"""`hyperspy._signals.signal2d.Signal2D`: The hyperspy signal 
         representation of the fake CBED pattern.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context.
 
         Let ``image``, ``illumination_support``, ``disk_overlap_map``,
@@ -2111,7 +2136,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         r"""`torch.Tensor`: The image of the target fake CBED pattern, 
         :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context, in
         particular a description of the calculation of
         :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`.
@@ -2180,7 +2205,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         r"""`torch.Tensor`: The image of the illumination support,
         :math:`\mathcal{I}_{\text{OI};⌑;n,m}`.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context, in
         particular a description of the calculation of
         :math:`\mathcal{I}_{\text{OI};⌑;n,m}`.
@@ -2258,7 +2283,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         :math:`\left\{\mathcal{I}_{k;
         \text{DS};⌑;n,m}\right\}_{k=0}^{N_{\text{D}}-1}`.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context, in
         particular a description of the calculation of
         :math:`\left\{\mathcal{I}_{k;
@@ -2334,7 +2359,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         r"""`torch.Tensor`: The image of the disk overlap map,
         :math:`\mathcal{I}_{\text{DOM};⌑;n,m}`.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context, in
         particular a description of the calculation of
         :math:`\mathcal{I}_{\text{DOM};⌑;n,m}`.
@@ -2412,7 +2437,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         r"""`torch.Tensor`: The disk clipping registry, 
         :math:`\left\{\Omega_{k;\text{DCR};⌑}\right\}_{k=0}^{N_{\text{D}}-1}`.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context, in
         particular a description of the calculation of
         :math:`\left\{\Omega_{k;\text{DCR};⌑}\right\}_{k=0}^{N_{\text{D}}-1}`.
@@ -2428,13 +2453,14 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         than :math:`N_{\text{D}}`, ``disk_clipping_registry[k]`` is
         :math:`\Omega_{k;\text{DCR};⌑}`, with the integer :math:`k` being equal
         to the value of ``k``. If ``disk_clipping_registry[k]`` is equal to
-        ``False``, then every nonzero pixel of the image of the support of the
-        :math:`k^{\text{th}}` distorted CBED disk is at least two pixels away
-        from (i.e. at least next-nearest neighbours to) every zero-valued pixel
-        of the image of the illumination support and is at least one pixel away
-        from every pixel bordering the image of the illumination support, and
-        that the image of the support of the :math:`k^{\text{th}}` distorted
-        CBED disk has at least one nonzero pixel. Otherwise, if
+        ``False``, then the image of the support of the :math:`k^{\text{th}}`
+        distorted CBED disk has at least one nonzero pixel, and that the
+        position of every nonzero pixel of said image is at least two pixels
+        away from (i.e. at least pixel-wise next-nearest neighbours to) the
+        position of every zero-valued pixel of the image of the illumination
+        support, at least two pixels away from the position of every pixel
+        inside the mask frame, and at least one pixel away from every pixel
+        bordering the image of the illumination support. Otherwise, if
         ``disk_clipping_registry[k]`` is equal to ``True``, then the opposite of
         the above scenario is true.
 
@@ -2448,7 +2474,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
 
     def get_disk_absence_registry(self, deep_copy=_default_deep_copy):
-        r"""Return the disk clipping registry,
+        r"""Return the disk absence registry,
         :math:`\left\{\Omega_{k;\text{DAR};⌑}\right\}_{k=0}^{N_{\text{D}}-1}`.
 
         Parameters
@@ -2488,19 +2514,18 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
     
     @property
     def disk_absence_registry(self):
-        r"""`torch.Tensor`: The disk clipping registry, 
+        r"""`torch.Tensor`: The disk absence registry, 
         :math:`\left\{\Omega_{k;\text{DAR};⌑}\right\}_{k=0}^{N_{\text{D}}-1}`.
 
-        See the summary documentation of the class
+        See the summary documentation for the class
         :class:`fakecbed.discretized.CBEDPattern` for additional context, in
         particular a description of the calculation of
-        :math:`\left\{\Omega_{k;\text{DCR};⌑}\right\}_{k=0}^{N_{\text{D}}-1}`.
+        :math:`\left\{\Omega_{k;\text{DAR};⌑}\right\}_{k=0}^{N_{\text{D}}-1}`.
 
         Note that :math:`N_{\text{D}}` is equal to the value of the attribute
-        :attr:`fakecbed.discretized.CBEDPattern.num_disks`,
-        :math:`\mathcal{I}_{\text{OI};⌑;n,m}` is the image of the illumination
-        support, and :math:`\mathcal{I}_{k;\text{DS};⌑;n,m}` is the image of the
-        support of the :math:`k^{\text{th}}` distorted CBED disk.
+        :attr:`fakecbed.discretized.CBEDPattern.num_disks`, and
+        :math:`\mathcal{I}_{k;\text{DS};⌑;n,m}` is the image of the support of
+        the :math:`k^{\text{th}}` distorted CBED disk.
 
         ``disk_absence_registry`` is a one-dimensional PyTorch tensor of length
         equal to :math:`N_{\text{D}}`. For every nonnegative integer ``k`` less
@@ -2542,6 +2567,2558 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         """
         result = self._image_has_been_overridden
         
+        return result
+
+
+
+def _check_and_convert_cbed_pattern(params):
+    obj_name = "cbed_pattern"
+    obj = params[obj_name]
+
+    accepted_types = (fakecbed.discretized.CBEDPattern, type(None))
+
+    if isinstance(obj, accepted_types[-1]):
+        cbed_pattern = accepted_types[0]()
+    else:
+        kwargs = {"obj": obj,
+                  "obj_name": obj_name,
+                  "accepted_types": accepted_types}
+        czekitout.check.if_instance_of_any_accepted_types(**kwargs)
+        cbed_pattern = copy.deepcopy(obj)
+
+    return cbed_pattern
+
+
+
+def _pre_serialize_cbed_pattern(cbed_pattern):
+    obj_to_pre_serialize = cbed_pattern
+    serializable_rep = obj_to_pre_serialize.pre_serialize()
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_cbed_pattern(serializable_rep):
+    cbed_pattern = \
+        fakecbed.discretized.CBEDPattern.de_pre_serialize(serializable_rep)
+
+    return cbed_pattern
+
+
+
+def _check_and_convert_cropping_window_center(params):
+    obj_name = "cropping_window_center"
+    obj = params[obj_name]
+
+    current_func_name = "_check_and_convert_cropping_window_center"
+    
+    if obj is not None:
+        try:
+            func_alias = czekitout.convert.to_pair_of_floats
+            kwargs = {"obj": obj, "obj_name": obj_name}
+            cropping_window_center = func_alias(**kwargs)
+        except:
+            err_msg = globals()[current_func_name+"_err_msg_1"]
+            raise TypeError(err_msg)
+    else:
+        cls_alias = fakecbed.discretized.CBEDPattern
+        cbed_pattern = (params["cbed_pattern"]
+                        if isinstance(params["cbed_pattern"], cls_alias)
+                        else _check_and_convert_cbed_pattern(params))
+        params["cbed_pattern"] = cbed_pattern
+
+        cbed_pattern_core_attrs = cbed_pattern.get_core_attrs(deep_copy=False)
+        N_W_h = cbed_pattern_core_attrs["num_pixels_across_pattern"]
+        N_W_v = N_W_h
+
+        h_scale = 1/N_W_h
+        v_scale = -1/N_W_v
+
+        h_offset = 0.5/N_W_h
+        v_offset = 1 - (1-0.5)/N_W_v
+
+        cropping_window_center = (h_offset + h_scale*((N_W_h-1)//2),
+                                  v_offset + v_scale*((N_W_v-1)//2))
+
+    return cropping_window_center
+
+
+
+def _pre_serialize_cropping_window_center(cropping_window_center):
+    obj_to_pre_serialize = cropping_window_center
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_cropping_window_center(serializable_rep):
+    cropping_window_center = serializable_rep
+
+    return cropping_window_center
+
+
+
+def _check_and_convert_cropping_window_dims_in_pixels(params):
+    obj_name = "cropping_window_dims_in_pixels"
+    obj = params[obj_name]
+
+    current_func_name = "_check_and_convert_cropping_window_dims_in_pixels"
+
+    if obj is not None:
+        try:
+            kwargs = {"obj": obj, "obj_name": obj_name}
+            func_alias = czekitout.convert.to_pair_of_positive_ints
+            cropping_window_dims_in_pixels = func_alias(**kwargs)
+        except:
+            err_msg = globals()[current_func_name+"_err_msg_1"]
+            raise TypeError(err_msg)
+    else:
+        cls_alias = fakecbed.discretized.CBEDPattern
+        cbed_pattern = (params["cbed_pattern"]
+                        if isinstance(params["cbed_pattern"], cls_alias)
+                        else _check_and_convert_cbed_pattern(params))
+        params["cbed_pattern"] = cbed_pattern
+
+        cbed_pattern_core_attrs = cbed_pattern.get_core_attrs(deep_copy=False)
+        N_W_h = cbed_pattern_core_attrs["num_pixels_across_pattern"]
+        N_W_v = N_W_h
+
+        cropping_window_dims_in_pixels = (N_W_h, N_W_v)
+
+    return cropping_window_dims_in_pixels
+
+
+
+def _pre_serialize_cropping_window_dims_in_pixels(
+        cropping_window_dims_in_pixels):
+    obj_to_pre_serialize = cropping_window_dims_in_pixels
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_cropping_window_dims_in_pixels(serializable_rep):
+    cropping_window_dims_in_pixels = serializable_rep
+
+    return cropping_window_dims_in_pixels
+
+
+
+def _check_and_convert_principal_disk_idx(params):
+    obj_name = "principal_disk_idx"
+    func_alias = czekitout.convert.to_nonnegative_int
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    principal_disk_idx = func_alias(**kwargs)
+
+    return principal_disk_idx
+
+
+
+def _pre_serialize_principal_disk_idx(principal_disk_idx):
+    obj_to_pre_serialize = principal_disk_idx
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_principal_disk_idx(serializable_rep):
+    principal_disk_idx = serializable_rep
+
+    return principal_disk_idx
+
+
+
+def _check_and_convert_disk_boundary_sample_size(params):
+    obj_name = "disk_boundary_sample_size"
+    func_alias = czekitout.convert.to_positive_int
+    kwargs = {"obj": params[obj_name], "obj_name": obj_name}
+    disk_boundary_sample_size = func_alias(**kwargs)
+
+    return disk_boundary_sample_size
+
+
+
+def _pre_serialize_disk_boundary_sample_size(disk_boundary_sample_size):
+    obj_to_pre_serialize = disk_boundary_sample_size
+    serializable_rep = obj_to_pre_serialize
+    
+    return serializable_rep
+
+
+
+def _de_pre_serialize_disk_boundary_sample_size(serializable_rep):
+    disk_boundary_sample_size = serializable_rep
+
+    return disk_boundary_sample_size
+
+
+
+_default_cbed_pattern = None
+_default_cropping_window_center = None
+_default_cropping_window_dims_in_pixels = None
+_default_principal_disk_idx = 0
+_default_disk_boundary_sample_size = 512
+
+
+
+class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
+    r"""A discretized cropped fake convergent beam electron diffraction (CBED)
+    pattern.
+
+    A series of parameters need to be specified in order to create an image of a
+    cropped fake CBED pattern, which are: the set of parameters of a discretized
+    fake CBED pattern; the spatial dimensions and the target center of the
+    cropping window to be applied to said pattern; an index specifying the CBED
+    disk, should it exist, for which to analyze in further detail than any other
+    CBED disk in the pattern; the number of points to sample from the boundary
+    of the unclipped support of the CBED disk specified by the aforementioned
+    index, again should the disk exist; and the mask frame to be applied after
+    cropping the fake CBED pattern.
+
+    Parameters
+    ----------
+    cbed_pattern : :class:`fakecbed.discretized.CBEDPattern` | `None`, optional
+        The discretized fake CBED pattern for which to crop. If ``cbed_pattern``
+        is set to ``None``, then the parameter will be reassigned to the value
+        ``fakecbed.discretized.CBEDPattern()``.
+    cropping_window_center : `array_like` (`float`, shape=(2,)) | `None`, optional
+        If ``cropping_window_center`` is set to ``None``, then the center of the
+        cropping window is set to the fractional coordinates of the discretized
+        fake CBED pattern corresponding to the pixel that is ``(h_dim+1)//2-1``
+        pixels to the right of the upper left corner pixel, and
+        ``(v_dim+1)//2-1`` pixels below the same corner, where ``h_dim`` and
+        ``v_dim`` are the horizontal and vertical dimensions of the discretized
+        fake CBED pattern in units of pixels. Otherwise, if
+        ``cropping_window_center`` is set to a pair of floating-point numbers,
+        then ``cropping_window_center[0]`` and ``cropping_window_center[1]``
+        specify the fractional horizontal and vertical coordinates,
+        respectively, of the center of the cropping window prior to the subpixel
+        shift to the nearest pixel. Note that the crop is applied after the
+        subpixel shift to the nearest pixel. Moreover, note that the fractional
+        coordinate pair :math:`\left(0, 0\right)` corresponds to the bottom left
+        corner of the fake CBED pattern.
+
+        We define the center of the cropping window to be ``(N_W_h+1)//2 - 1``
+        pixels to the right of the upper left corner of the cropping window, and
+        ``(N_W_v+1)//2 - 1`` pixels below the same corner, where ``N_W_h`` and
+        ``N_W_v`` are the horizontal and vertical dimensions of the cropping
+        window in units of pixels.
+    cropping_window_dims_in_pixels : `array_like` (`int`, shape=(2,)) | `None`, optional
+        If ``cropping_window_dims_in_pixels`` is set to ``None``, then the
+        dimensions of the cropping window are set to the dimensions of
+        discretized fake CBED pattern.  Otherwise, if
+        ``cropping_window_dims_in_pixels`` is set to a pair of positive
+        integers, then ``cropping_window_dims_in_pixels[0]`` and
+        ``cropping_window_dims_in_pixels[1]`` specify the horizontal and
+        vertical dimensions of the cropping window in units of pixels.
+    principal_disk_idx : `int`, optional
+        A nonnegative integer specifying the CBED disk, should it exist, for
+        which to analyze in further detail than any other CBED disk in the
+        pattern. Assuming that ``cbed_pattern`` has already been reassigned if
+        necessary, and that ``principal_disk_idx <
+        len(cbed_pattern.core_attrs["undistorted_disks"])``, then
+        ``principal_disk_idx`` specifies the CBED disk constructed from the
+        undistorted intensity pattern stored in
+        ``cbed_pattern.core_attrs["undistorted_disks"][prinicpal_disk_idx]``. If
+        ``principal_disk_idx >=
+        len(cbed_pattern.core_attrs["undistorted_disks"])``, then
+        ``principal_disk_idx`` specifies a nonexistent CBED disk. See the
+        summary documentation for the class
+        :class:`fakecbed.discretized.CBEDPattern`, in particular the description
+        of the construction parameter ``undistorted_disks`` therein, for
+        additional context.
+    disk_boundary_sample_size : `int`, optional
+        The number of points to sample from the boundary of the unclipped
+        support of the CBED disk specified by ``principal_disk_idx``, should the
+        disk exist, upon calling the method
+        :class:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords`.
+        Must be a positive integer.
+    mask_frame : `array_like` (`int`, shape=(4,)), optional
+        ``mask_frame`` specifies the mask frame to be applied after cropping the
+        fake CBED pattern. ``mask_frame[0]``, ``mask_frame[1]``,
+        ``mask_frame[2]``, and ``mask_frame[3]`` are the widths, in units of
+        pixels, of the left, right, bottom, and top sides of the mask frame
+        respectively. 
+    skip_validation_and_conversion : `bool`, optional
+        Let ``validation_and_conversion_funcs`` and ``core_attrs`` denote the
+        attributes :attr:`~fancytypes.Checkable.validation_and_conversion_funcs`
+        and :attr:`~fancytypes.Checkable.core_attrs` respectively, both of which
+        being `dict` objects.
+
+        Let ``params_to_be_mapped_to_core_attrs`` denote the `dict`
+        representation of the constructor parameters excluding the parameter
+        ``skip_validation_and_conversion``, where each `dict` key ``key`` is a
+        different constructor parameter name, excluding the name
+        ``"skip_validation_and_conversion"``, and
+        ``params_to_be_mapped_to_core_attrs[key]`` would yield the value of the
+        constructor parameter with the name given by ``key``.
+
+        If ``skip_validation_and_conversion`` is set to ``False``, then for each
+        key ``key`` in ``params_to_be_mapped_to_core_attrs``,
+        ``core_attrs[key]`` is set to ``validation_and_conversion_funcs[key]
+        (params_to_be_mapped_to_core_attrs)``.
+
+        Otherwise, if ``skip_validation_and_conversion`` is set to ``True``,
+        then ``core_attrs`` is set to
+        ``params_to_be_mapped_to_core_attrs.copy()``. This option is desired
+        primarily when the user wants to avoid potentially expensive deep copies
+        and/or conversions of the `dict` values of
+        ``params_to_be_mapped_to_core_attrs``, as it is guaranteed that no
+        copies or conversions are made in this case.
+
+    """
+    ctor_param_names = ("cbed_pattern",
+                        "cropping_window_center",
+                        "cropping_window_dims_in_pixels",
+                        "principal_disk_idx",
+                        "disk_boundary_sample_size",
+                        "mask_frame")
+    kwargs = {"namespace_as_dict": globals(),
+              "ctor_param_names": ctor_param_names}
+    
+    _validation_and_conversion_funcs_ = \
+        fancytypes.return_validation_and_conversion_funcs(**kwargs)
+    _pre_serialization_funcs_ = \
+        fancytypes.return_pre_serialization_funcs(**kwargs)
+    _de_pre_serialization_funcs_ = \
+        fancytypes.return_de_pre_serialization_funcs(**kwargs)
+
+    del ctor_param_names, kwargs
+
+    
+
+    def __init__(self,
+                 cbed_pattern=\
+                 _default_cbed_pattern,
+                 cropping_window_center=\
+                 _default_cropping_window_center,
+                 cropping_window_dims_in_pixels=\
+                 _default_cropping_window_dims_in_pixels,
+                 principal_disk_idx=\
+                 _default_principal_disk_idx,
+                 disk_boundary_sample_size=\
+                 _default_disk_boundary_sample_size,
+                 mask_frame=\
+                 _default_mask_frame,
+                 skip_validation_and_conversion=\
+                 _default_skip_validation_and_conversion):
+        ctor_params = {key: val
+                       for key, val in locals().items()
+                       if (key not in ("self", "__class__"))}
+        kwargs = ctor_params
+        kwargs["skip_cls_tests"] = True
+        fancytypes.PreSerializableAndUpdatable.__init__(self, **kwargs)
+
+        self.execute_post_core_attrs_update_actions()
+
+        return None
+
+
+
+    @classmethod
+    def get_validation_and_conversion_funcs(cls):
+        validation_and_conversion_funcs = \
+            cls._validation_and_conversion_funcs_.copy()
+
+        return validation_and_conversion_funcs
+
+
+    
+    @classmethod
+    def get_pre_serialization_funcs(cls):
+        pre_serialization_funcs = \
+            cls._pre_serialization_funcs_.copy()
+
+        return pre_serialization_funcs
+
+
+    
+    @classmethod
+    def get_de_pre_serialization_funcs(cls):
+        de_pre_serialization_funcs = \
+            cls._de_pre_serialization_funcs_.copy()
+
+        return de_pre_serialization_funcs
+
+
+
+    def execute_post_core_attrs_update_actions(self):
+        self_core_attrs = self.get_core_attrs(deep_copy=False)
+        for self_core_attr_name in self_core_attrs:
+            attr_name = "_"+self_core_attr_name
+            attr = self_core_attrs[self_core_attr_name]
+            setattr(self, attr_name, attr)
+        
+        self._num_disks = \
+            self._cbed_pattern._num_disks
+        self._device = \
+            self._cbed_pattern._device
+        self._image_has_been_overridden = \
+            self._cbed_pattern._image_has_been_overridden
+
+        cropped_blank_signal = self._generate_cropped_blank_signal()
+
+        self._cropped_blank_signal_offsets = \
+            (cropped_blank_signal.axes_manager[0].offset,
+             cropped_blank_signal.axes_manager[1].offset,
+             cropped_blank_signal.axes_manager[2].offset)
+
+        attr_name_subset = ("_illumination_support",
+                            "_image",
+                            "_signal",
+                            "_disk_clipping_registry",
+                            "_disk_supports",
+                            "_disk_absence_registry",
+                            "_principal_disk_is_clipped",
+                            "_principal_disk_is_absent",
+                            "_disk_overlap_map",
+                            "_principal_disk_analysis_results",
+                            "_principal_disk_bounding_box"
+                            "_in_uncropped_image_fractional_coords",
+                            "_principal_disk_bounding_box"
+                            "_in_cropped_image_fractional_coords",
+                            "_principal_disk_boundary_pts"
+                            "_in_uncropped_image_fractional_coords",
+                            "_principal_disk_boundary_pts"
+                            "_in_cropped_image_fractional_coords")
+
+        for attr_name in attr_name_subset:
+            setattr(self, attr_name, None)
+
+        return None
+
+
+
+    def _generate_cropped_blank_signal(self):
+        uncropped_blank_signal = self._generate_uncropped_blank_signal()
+
+        optional_params = self._generate_optional_cropping_params()
+
+        kwargs = {"input_signal": uncropped_blank_signal,
+                  "optional_params": optional_params}
+        cropped_blank_signal = empix.crop(**kwargs)
+
+        return cropped_blank_signal
+
+
+
+    def _generate_uncropped_blank_signal(self):
+        cbed_pattern_core_attrs = \
+            self._cbed_pattern.get_core_attrs(deep_copy=False)
+
+        num_disks = self._num_disks
+        N_x = cbed_pattern_core_attrs["num_pixels_across_pattern"]
+
+        uncropped_blank_signal_data = np.zeros((3+num_disks, N_x, N_x),
+                                               dtype=float)
+        kwargs = {"data": uncropped_blank_signal_data}
+        uncropped_blank_signal = hyperspy.signals.Signal2D(**kwargs)
+
+        kwargs = {"signal": uncropped_blank_signal}
+        self._cbed_pattern._update_signal_axes(**kwargs)
+
+        return uncropped_blank_signal
+
+
+
+    def _generate_optional_cropping_params(self):
+        kwargs = {"center": self._cropping_window_center,
+                  "window_dims": self._cropping_window_dims_in_pixels,
+                  "pad_mode": "zeros",
+                  "apply_symmetric_mask": False,
+                  "title": "",
+                  "skip_validation_and_conversion": True}
+        optional_cropping_params = empix.OptionalCroppingParams(**kwargs)
+
+        return optional_cropping_params
+
+
+
+    def update(self,
+               new_core_attr_subset_candidate,
+               skip_validation_and_conversion=\
+               _default_skip_validation_and_conversion):
+        super().update(new_core_attr_subset_candidate,
+                       skip_validation_and_conversion)
+        self.execute_post_core_attrs_update_actions()
+
+        return None
+
+
+
+    @property
+    def num_disks(self):
+        r"""`int`: The total number of CBED disks defined, :math:`N_{\text{D}}`.
+
+        See the summary documentation for the class
+        :class:`fakecbed.discretized.CBEDPattern` for additional context.
+
+        Let ``core_attrs`` denote the attribute
+        :attr:`~fancytypes.Checkable.core_attrs`. ``num_disks`` is equal to
+        ``core_attrs["cbed_pattern"].num_disks``.
+
+        Note that ``num_disks`` should be considered **read-only**.
+
+        """
+        result = self._num_disks
+        
+        return result
+
+
+
+    @property
+    def device(self):
+        r"""`torch.device`: The device on which computationally intensive 
+        PyTorch operations are performed and attributes of the type 
+        :class:`torch.Tensor` are stored.
+
+        Note that ``device`` should be considered **read-only**.
+
+        """
+        result = copy.deepcopy(self._device)
+
+        return result
+
+
+
+    def get_principal_disk_boundary_pts_in_uncropped_image_fractional_coords(
+            self, deep_copy=_default_deep_copy):
+        r"""Return the sample of points on the boundary of the "principal" CBED 
+        disk, should it exist, in fractional coordinates of the uncropped CBED
+        pattern.
+
+        Let ``core_attrs`` denote the attribute
+        :attr:`~fancytypes.Checkable.core_attrs`.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let
+            ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords``
+            denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_uncropped_image_fractional_coords`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords``
+            is returned.  Otherwise, a reference to
+            ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords``
+            is returned.
+
+        Returns
+        -------
+        principal_disk_boundary_pts_in_uncropped_image_fractional_coords : `torch.Tensor` (`float`, shape=(core_attrs["disk_boundary_sample_size"], 2)) | `None`
+            The attribute 
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_uncropped_image_fractional_coords`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        attr_name = ("_principal_disk_boundary_pts"
+                     "_in_uncropped_image_fractional_coords")
+        attr = getattr(self, attr_name)
+
+        if attr is None:
+            method_name = ("_calc_principal_disk_analysis_results"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._principal_disk_analysis_results = method_alias()
+
+            attr = getattr(self, attr_name)
+
+        principal_disk_boundary_pts_in_uncropped_image_fractional_coords = \
+            (attr
+             if ((deep_copy == False) or (attr is None))
+             else attr.detach().clone())
+
+        return principal_disk_boundary_pts_in_uncropped_image_fractional_coords
+
+
+
+    def _calc_principal_disk_analysis_results_and_cache_select_intermediates(
+            self):
+        principal_disk_analysis_results = tuple()
+        
+        method_name_set = \
+            ("_calc_disk_boundary_pts_in_uncropped_image_fractional_coords",
+             "_calc_disk_bounding_box_in_uncropped_image_fractional_coords",
+             "_calc_disk_boundary_pts_in_cropped_image_fractional_coords",
+             "_calc_disk_bounding_box_in_cropped_image_fractional_coords")
+
+        for method_alias_idx, method_name in enumerate(method_name_set):
+            method_alias = getattr(self, method_name)
+            
+            if method_alias_idx in (0,):
+                kwargs = \
+                    {"disk_idx": \
+                     self._principal_disk_idx}
+            elif method_alias_idx in (1, 2):
+                kwargs = \
+                    {"disk_boundary_pts_in_uncropped_image_fractional_coords": \
+                     principal_disk_analysis_results[0]}
+            else:
+                kwargs = \
+                    {"disk_boundary_pts_in_cropped_image_fractional_coords": \
+                     principal_disk_analysis_results[2]}
+
+            principal_disk_analysis_results += (method_alias(**kwargs),)
+
+            attr_name = "_principal" + method_name[5:]
+            setattr(self, attr_name, principal_disk_analysis_results[-1])
+
+        return principal_disk_analysis_results
+
+
+
+    def _calc_disk_boundary_pts_in_uncropped_image_fractional_coords(self,
+                                                                     disk_idx):
+        cbed_pattern_core_attrs = \
+            self._cbed_pattern.get_core_attrs(deep_copy=False)
+
+        undistorted_disks = cbed_pattern_core_attrs["undistorted_disks"]
+
+        if disk_idx < len(undistorted_disks):
+            undistorted_disk = undistorted_disks[disk_idx]
+
+            num_pixels_across_uncropped_pattern = \
+                cbed_pattern_core_attrs["num_pixels_across_pattern"]
+
+            method_name = \
+                "_calc_undistorted_disk_boundary_starting_angular_coord"
+            method_alias = \
+                getattr(self, method_name)
+            kwargs = \
+                {"undistorted_disk": \
+                 undistorted_disk,
+                 "num_pixels_across_uncropped_pattern": \
+                 num_pixels_across_uncropped_pattern}
+            undistorted_disk_boundary_starting_angular_coord = \
+                method_alias(**kwargs)
+
+            kwargs = {"steps": self._disk_boundary_sample_size}
+            kwargs["start"] = undistorted_disk_boundary_starting_angular_coord
+            kwargs["end"] = (kwargs["start"]
+                             + (kwargs["steps"]-1)*(2*np.pi/kwargs["steps"]))
+            undistorted_disk_boundary_angular_coords = torch.linspace(**kwargs)
+
+            method_name = ("_calc_disk_boundary_pts_and_diffs"
+                           "_in_uncropped_image_fractional_coords")
+            method_alias = getattr(self, method_name)
+            kwargs = {"undistorted_disk": \
+                      undistorted_disk,
+                      "undistorted_disk_boundary_angular_coords": \
+                      undistorted_disk_boundary_angular_coords}
+            pts_and_diffs = method_alias(**kwargs)
+
+            disk_boundary_pts_in_uncropped_image_fractional_coords = \
+                pts_and_diffs[0]
+        else:
+            disk_boundary_pts_in_uncropped_image_fractional_coords = \
+                None
+
+        return disk_boundary_pts_in_uncropped_image_fractional_coords
+
+
+
+    def _calc_undistorted_disk_boundary_starting_angular_coord(
+            self, undistorted_disk, num_pixels_across_uncropped_pattern):
+        max_num_iterations = 30
+        iteration_idx = 0
+        num_pts = self._disk_boundary_sample_size
+        search_algorithm_has_not_finished = True
+
+        kwargs = {"steps": num_pts}
+        kwargs["start"] = 0
+        kwargs["end"] = (kwargs["start"]
+                         + (kwargs["steps"]-1)*(2*np.pi/kwargs["steps"]))
+
+        while search_algorithm_has_not_finished:
+            angular_coords = torch.linspace(**kwargs)
+
+            method_name = ("_calc_disk_boundary_pts_and_diffs"
+                           "_in_uncropped_image_fractional_coords")
+            method_alias = getattr(self, method_name)
+            kwargs = {"undistorted_disk": \
+                      undistorted_disk,
+                      "undistorted_disk_boundary_angular_coords": \
+                      angular_coords}
+            pts, diffs = method_alias(**kwargs)
+            
+            angular_coord_idx = torch.argmax(pts[:, 0])
+            diff_subset = diffs if (iteration_idx==0) else diffs[:-1]
+            N_x = num_pixels_across_uncropped_pattern
+
+            if iteration_idx == 0:
+                min_angle = angular_coords[(angular_coord_idx-16)%num_pts]
+                max_angle = angular_coords[(angular_coord_idx+16)%num_pts]
+            else:
+                min_angle = angular_coords[max(angular_coord_idx-16, 0)]
+                max_angle = angular_coords[min(angular_coord_idx+16, num_pts-1)]
+                
+            kwargs = {"steps": num_pts}
+            kwargs["start"] = min_angle
+            kwargs["end"] = max_angle + (min_angle > max_angle)*(2*np.pi)
+
+            search_algorithm_has_not_finished = \
+                ((100*N_x*torch.amax(diff_subset) > 1)
+                 and (iteration_idx < max_num_iterations-1))
+
+            iteration_idx += 1
+            
+        undistorted_disk_boundary_starting_angular_coord = \
+            angular_coords[angular_coord_idx].item() % (2*np.pi)
+
+        return undistorted_disk_boundary_starting_angular_coord
+
+
+
+    def _calc_disk_boundary_pts_and_diffs_in_uncropped_image_fractional_coords(
+            self, undistorted_disk, undistorted_disk_boundary_angular_coords):
+        method_name = \
+            "_calc_shape_boundary_pts_in_uncropped_image_fractional_coords"
+        method_alias = \
+            getattr(self, method_name)
+        kwargs = \
+            {"shape": \
+             undistorted_disk,
+             "shape_boundary_angular_coords": \
+             undistorted_disk_boundary_angular_coords}
+        shape_boundary_pts_in_uncropped_image_fractional_coords = \
+            method_alias(**kwargs)
+
+        u_x = shape_boundary_pts_in_uncropped_image_fractional_coords[:, 0:1]
+        u_y = shape_boundary_pts_in_uncropped_image_fractional_coords[:, 1:2]
+
+        cbed_pattern_core_attrs = \
+            self._cbed_pattern.get_core_attrs(deep_copy=False)
+        distortion_model = \
+            cbed_pattern_core_attrs["distortion_model"]
+
+        distortion_model_core_attrs = \
+            distortion_model.get_core_attrs(deep_copy=False)
+        coord_transform_params = \
+            distortion_model_core_attrs["coord_transform_params"]
+
+        kwargs = {"u_x": u_x,
+                  "u_y": u_y,
+                  "coord_transform_params": coord_transform_params,
+                  "device": self._device,
+                  "skip_validation_and_conversion": True}
+        q_x, q_y = distoptica.apply_coord_transform(**kwargs)
+
+        num_pts = self._disk_boundary_sample_size
+        pts = torch.zeros((num_pts, 2), device=self._device)
+        pts[:, 0] = q_x[:, 0]
+        pts[:, 1] = q_y[:, 0]
+
+        diffs = torch.zeros_like(undistorted_disk_boundary_angular_coords)
+        for angular_coord_idx in range(num_pts):
+            pt_1 = pts[(angular_coord_idx)%num_pts]
+            pt_2 = pts[(angular_coord_idx+1)%num_pts]
+            diffs[angular_coord_idx] = torch.linalg.norm(pt_2-pt_1)
+
+        disk_boundary_pts_and_diffs_in_uncropped_image_fractional_coords = \
+            (pts, diffs)
+
+        return disk_boundary_pts_and_diffs_in_uncropped_image_fractional_coords
+
+
+
+    def _calc_shape_boundary_pts_in_uncropped_image_fractional_coords(
+            self, shape, shape_boundary_angular_coords):
+        shape_core_attrs = shape.get_core_attrs(deep_copy=False)
+        shape_support = shape_core_attrs["support"]
+
+        shape_support_core_attrs = shape_support.get_core_attrs(deep_copy=False)
+        u_x_c, u_y_c = shape_support_core_attrs["center"]
+        a = (shape_support_core_attrs["semi_major_axis"]
+             if ("semi_major_axis" in shape_support_core_attrs)
+             else shape_support_core_attrs["radius"])
+        e = shape_support_core_attrs.get("eccentricity", 0)
+        theta = shape_support_core_attrs.get("rotation_angle", 0)
+
+        b = a*np.sqrt(1-e*e).item()
+        phi = shape_boundary_angular_coords
+
+        u_x = (u_x_c + a*torch.cos(phi+theta))[:, None]
+        u_y = (u_y_c + b*torch.sin(phi+theta))[:, None]
+
+        num_pts = shape_boundary_angular_coords.numel()
+        pts = torch.zeros((num_pts, 2), device=self._device)
+        pts[:, 0] = u_x[:, 0]
+        pts[:, 1] = u_y[:, 0]
+
+        shape_boundary_pts_in_uncropped_image_fractional_coords = pts
+        
+        return shape_boundary_pts_in_uncropped_image_fractional_coords
+
+
+
+    def _calc_disk_bounding_box_in_uncropped_image_fractional_coords(
+            self, disk_boundary_pts_in_uncropped_image_fractional_coords):
+        if disk_boundary_pts_in_uncropped_image_fractional_coords is not None:
+            pts = disk_boundary_pts_in_uncropped_image_fractional_coords
+
+            disk_bounding_box_in_uncropped_image_fractional_coords = \
+                (torch.amin(pts[:, 0]).item(),
+                 torch.amax(pts[:, 0]).item(),
+                 torch.amin(pts[:, 1]).item(),
+                 torch.amax(pts[:, 1]).item())
+        else:
+            disk_bounding_box_in_uncropped_image_fractional_coords = None
+
+        return disk_bounding_box_in_uncropped_image_fractional_coords
+
+
+
+    def _calc_disk_boundary_pts_in_cropped_image_fractional_coords(
+            self, disk_boundary_pts_in_uncropped_image_fractional_coords):
+        if disk_boundary_pts_in_uncropped_image_fractional_coords is not None:
+            cbed_pattern_core_attrs = \
+                self._cbed_pattern.get_core_attrs(deep_copy=False)
+
+            N_x = cbed_pattern_core_attrs["num_pixels_across_pattern"]
+            N_y = N_x
+
+            N_W_h, N_W_v = self._cropping_window_dims_in_pixels
+
+            kwargs = \
+                {"input": \
+                 disk_boundary_pts_in_uncropped_image_fractional_coords}
+            disk_boundary_pts_in_cropped_image_fractional_coords = \
+                torch.zeros_like(**kwargs)
+
+            disk_boundary_pts_in_cropped_image_fractional_coords[:, 0] = \
+                ((disk_boundary_pts_in_uncropped_image_fractional_coords[:, 0]
+                  - self._cropped_blank_signal_offsets[1]) * (N_x/N_W_h)
+                 + (0.5/N_W_h))
+            disk_boundary_pts_in_cropped_image_fractional_coords[:, 1] = \
+                ((disk_boundary_pts_in_uncropped_image_fractional_coords[:, 1]
+                  - self._cropped_blank_signal_offsets[2]) * (N_y/N_W_v)
+                 + (1-(1-0.5)/N_W_v))
+        else:
+            disk_boundary_pts_in_cropped_image_fractional_coords = None
+
+        return disk_boundary_pts_in_cropped_image_fractional_coords
+
+
+
+    def _calc_disk_bounding_box_in_cropped_image_fractional_coords(
+            self, disk_boundary_pts_in_cropped_image_fractional_coords):
+        if disk_boundary_pts_in_cropped_image_fractional_coords is not None:
+            pts = disk_boundary_pts_in_cropped_image_fractional_coords
+
+            disk_bounding_box_in_cropped_image_fractional_coords = \
+                (torch.amin(pts[:, 0]).item(),
+                 torch.amax(pts[:, 0]).item(),
+                 torch.amin(pts[:, 1]).item(),
+                 torch.amax(pts[:, 1]).item())
+        else:
+            disk_bounding_box_in_cropped_image_fractional_coords = None
+
+        return disk_bounding_box_in_cropped_image_fractional_coords
+
+
+
+    @property
+    def principal_disk_boundary_pts_in_uncropped_image_fractional_coords(self):
+        r"""`torch.Tensor` | `None`: The sample of points on the boundary of the
+        unclipped support of the "principal" CBED disk, should it exist, in 
+        fractional coordinates of the uncropped CBED pattern.
+
+        See the summary documentation for the classes
+        :class:`fakecbed.discretized.CBEDPattern` and
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context.
+
+        Let ``core_attrs`` denote the attribute
+        :attr:`~fancytypes.Checkable.core_attrs`. Furthermore, let
+        ``cbed_pattern``, ``disk_boundary_sample_size``, and
+        ``principal_disk_idx`` denote ``core_attrs["cbed_pattern"]``,
+        ``core_attrs["disk_boundary_sample_size"]``, and
+        ``core_attrs["principal_disk_idx"]`` respectively.
+
+        The "principal" CBED disk refers to the CBED disk, should it exist, that
+        is specified by the nonnegative integer ``principal_disk_idx``. If
+        ``principal_disk_idx <
+        len(cbed_pattern.core_attrs["undistorted_disks"])``, then
+        ``principal_disk_idx`` specifies the CBED disk constructed from the
+        undistorted intensity pattern stored in
+        ``cbed_pattern.core_attrs["undistorted_disks"][prinicpal_disk_idx]``. If
+        ``principal_disk_idx >=
+        len(cbed_pattern.core_attrs["undistorted_disks"])``, then
+        ``principal_disk_idx`` specifies a nonexistent CBED disk.
+
+        If ``principal_disk_idx`` specifies a nonexistent CBED disk, then
+        ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords`` is
+        set to ``None``. 
+
+        The remainder of the documentation for the current attribute describes
+        how said attribute is calculated, assuming that the principal CBED disk
+        exists. In :mod:`fakecbed`, the undistorted shape of the support of
+        every CBED disk is assumed to be an ellipse, which incidentally can be a
+        circle if the eccentricity is zero. The definitions of the center, the
+        semi-major axis, the eccentricity, and the rotation angle of a ellipse
+        that are adopted in :mod:`fakecbed` are given implictly in the
+        documentation for the class :class:`fakecbed.shapes.Ellipse`. Let
+        :math:`\left(u_{x;c;\text{PDS}},u_{y;c;\text{PDS}}\right)`,
+        :math:`a_{\text{PDS}}`, :math:`e_{\text{PDS}}`, and
+        :math:`\theta_{\text{PDS}}` be the center, the semi-major axis, the
+        eccentricity, and the rotation angle of the principal CBED disk support.
+
+        Let :math:`u_{x}` and :math:`u_{y}` be the fractional horizontal and
+        vertical coordinates, respectively, of a point in an undistorted image,
+        where :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)` is the bottom
+        left corner of the image. Similarly, let :math:`q_{x}` and :math:`q_{y}`
+        be the fractional horizontal and vertical coordinates, respectively, of
+        a point in a distorted image, where
+        :math:`\left(q_{x},q_{y}\right)=\left(0,0\right)` is the bottom left
+        corner of the image. The core attribute ``cbed_pattern`` specifies a
+        distortion model, which can be accessed via
+        ``cbed_pattern.core_attrs["distortion_model"]``. The distortion model
+        specifies a coordinate transformation,
+        :math:`\left(T_{⌑;x}\left(u_{x},u_{y}\right),
+        T_{⌑;x}\left(u_{x},u_{y}\right)\right)`, which maps a given coordinate
+        pair :math:`\left(u_{x},u_{y}\right)` to a corresponding coordinate pair
+        :math:`\left(q_{x},q_{y}\right)`.
+
+        Next, let :math:`N_{\mathcal{I};x} and N_{\mathcal{I};y}` be the number
+        of pixels in the image of the uncropped fake CBED pattern, where we
+        assume that
+
+        .. math ::
+            N_{\mathcal{I};x}=N_{\mathcal{I};y},
+            :label: N_I_x_eq_N_I_y__2
+
+        Furthermore, let :math:`N_{\text{max-iter}}=30, and let N_{\text{SS}}`
+        be ``disk_boundary_sample_size``.
+
+        Next, let :math:`\partial S_{\text{PDS};x;l}` and :math:`\partial
+        S_{\text{PDS};y;l}` denote
+        ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords[l,
+        0]`` and
+        ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords[l,
+        1]`` respectively, where
+        ````principal_disk_boundary_pts_in_uncropped_image_fractional_coords``
+        is the current attribute, and ``l`` is equal to the value of
+        :math:`l`. The current attribute is calculated effectively by executing
+        the following steps:
+
+        1. Calculate
+
+        .. math ::
+            X_{1} \leftarrow
+            \left\{ l^{\prime}\right\}_{l^{\prime}=0}^{N_{\text{SS}}-1}.
+            :label: X_1__1
+
+        2. Calculate
+
+        .. math ::
+            X_{2} \leftarrow
+            \left\{ l^{\prime}\right\}_{l^{\prime}=0}^{N_{\text{SS}}-2}
+            :label: X_2__1
+
+        3. Calculate
+
+        .. math ::
+            m \leftarrow 0.
+            :label: m__1
+
+        4. Calculate
+        
+        .. math ::
+            N_{\text{iter}} \leftarrow 0.
+            :label: N_iter__1
+
+        5. Calculate 
+        
+        .. math ::
+            \phi_{l}\leftarrow\frac{2\pi l}{N_{\text{SS}}}
+            \text{ for }l\in X_{1}.
+            :label: phi_l__1
+
+        6. Calculate
+        
+        .. math ::
+            j\leftarrow\min\left(\left\{ N_{\text{iter}}+1,1\right\} \right).
+            :label: j__1
+
+        7. Calculate
+
+        .. math ::
+            u_{x;l}\leftarrow u_{x;c;\text{PDS}}
+            +a_{\text{PDS}}\cos\left(\phi_{l}+\theta_{\text{PDS}}\right)
+            \text{ for }l\in X_{1},
+            :label: u_x_l__1
+
+        and
+
+        .. math ::
+            u_{y;l}\leftarrow u_{y;c;\text{PDS}}
+            +a_{\text{PDS}}\sqrt{1-e_{\text{PDS}}^{2}}
+            \sin\left(\phi_{l}+\theta_{\text{PDS}}\right)\text{ for }l\in X_{1}.
+            :label: u_y_l__1
+
+        8. Calculate
+        
+        .. math ::
+            q_{x;l}\leftarrow T_{\wasylozenge;x}\left(u_{x;l},u_{y;l}\right)
+            \text{ for }l\in X_{1},
+            :label: q_x_l__1
+
+        and
+
+        .. math ::
+            q_{y;l}\leftarrow T_{\wasylozenge;y}\left(u_{x;l},u_{y;l}\right)
+            \text{ for }l\in X_{1}.
+            :label: q_y_l__1
+
+        9. If :math:`m=0`, then go to step 10, otherwise go to step 21.
+
+        10. Calculate
+
+        .. math ::
+            n\leftarrow\text{argmax}_{l\in X_{1}}\left(u_{x;l}\right).
+            :label: n__1
+
+        11. Calculate
+
+        .. math ::
+            \Delta_{q;l}\leftarrow\sqrt{\sum_{\alpha\in\left\{ x,y\right\} }
+            \left[q_{\alpha;l\mod N_{\text{SS}}}
+            -q_{\alpha;\left\{ l+1\right\} \mod N_{\text{SS}}}\right]^{2}}
+            \text{ for }l\in X_{j}.
+            :label: Delta_q_l__1
+
+        12. If :math:`N_{\text{iter}}=0` then go to step 13, otherwise go to 
+        step 15.
+
+        13. Calculate
+
+        .. math ::
+            \phi_{\vdash}\leftarrow\phi_{\left(n-16\right)\mod N_{\text{SS}}},
+            :label: phi_vdash__1
+
+        and
+
+        .. math ::
+            \phi_{\dashv}\leftarrow\phi_{\left(n+16\right)\mod N_{\text{SS}}}.
+            :label: phi_dashv__1
+
+        14. Go to step 16.
+
+        15. Calculate
+
+        .. math ::
+            \phi_{\vdash}\leftarrow
+            \phi_{\max\left(\left\{n-16,0\right\}\right)},
+            :label: phi_vdash__2
+
+        and
+
+        .. math ::
+            \phi_{\dashv}\leftarrow
+            \phi_{\min\left(\left\{n+16,N_{\text{SS}}-1\right\}\right)}.
+            :label: phi_dashv__2
+
+        16. If :math:`\phi_{\vdash}>\phi_{\dashv}`, then calculate
+        
+        .. math ::
+            \phi_{\dashv}\leftarrow\phi_{\dashv}+2\pi.
+            :label: phi_dashv__3
+
+        17. Calculate
+
+        .. math ::
+            \phi_{l}\leftarrow
+            \phi_{\vdash}+l\frac{\phi_{\dashv}-\phi_{\vdash}}{N_{\text{SS}}-1}
+            \text{ for }l\in X_{1}.
+            :label: phi_l__2
+
+        18. If :math:`100 
+        N_{\mathcal{I};x}\max\left(
+        \left\{\Delta_{q;l}\right\}_{l\in S_{m}}\right) \le 1` or 
+        :math:`N_{\text{iter}}=N_{\text{max-iter}}`, then calculate
+        
+
+        .. math ::
+            m \leftarrow 1,
+            :label: m__2
+
+        .. math ::
+            \phi_{\vdash}\leftarrow\phi_{n}\mod\left\{ 2\pi\right\},
+            :label: phi_vdash__3
+
+        and
+
+        .. math ::
+            \phi_{\dashv}\leftarrow\phi_{\vdash}+2\pi.
+            :label: phi_dashv__4
+            
+
+        19. Calculate
+
+        .. math ::
+            N_{\text{iter}}\leftarrow N_{\text{iter}}+1.
+            :label: N_iter__2
+
+        20. Go to step 6.
+
+        21. Calculate
+
+        .. math ::
+            \partial S_{\text{PDS};x;l}\leftarrow q_{x;l}\text{ for }l\in X_{1},
+            :label: partial_S_PDS_x_l__1
+
+        and
+
+        .. math ::
+            \partial S_{\text{PDS};y;l}\leftarrow q_{y;l}\text{ for }l\in X_{1}.
+            :label: partial_S_PDS_y_l__1
+
+        A consequence of the above algorithm is that :math:`\left(\partial
+        S_{\text{PDS};x;0},\partial S_{\text{PDS};y;0}\right)` is the right-most
+        point of the entire sample of points :math:`\left\{ \left(\partial
+        S_{\text{PDS};x;l},\partial S_{\text{PDS};y;l}\right)\right\} _{l\in
+        S_{1}}` on the boundary of the principal CBED disk.
+
+        Note that
+        ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords``
+        should be considered **read-only**.
+
+        """
+        method_name = ("get_principal_disk_boundary_pts"
+                       "_in_uncropped_image_fractional_coords")
+        method_alias = getattr(self, method_name)
+        result = method_alias(deep_copy=True)
+
+        return result
+
+
+
+    def get_principal_disk_bounding_box_in_uncropped_image_fractional_coords(
+            self, deep_copy=_default_deep_copy):
+        r"""Return the bounding box of the "principal" CBED disk, should it 
+        exist, in fractional coordinates of the uncropped CBED pattern.
+
+        Let ``core_attrs`` denote the attribute
+        :attr:`~fancytypes.Checkable.core_attrs`.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let
+            ``principal_disk_bounding_box_in_uncropped_image_fractional_coords``
+            denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_uncropped_image_fractional_coords`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``principal_disk_bounding_box_in_uncropped_image_fractional_coords``
+            is returned.  Otherwise, a reference to
+            ``principal_disk_bounding_box_in_uncropped_image_fractional_coords``
+            is returned.
+
+        Returns
+        -------
+        principal_disk_bounding_box_in_uncropped_image_fractional_coords : `torch.Tensor` (`float`, shape=(core_attrs["disk_boundary_sample_size"], 2)) | `None`
+            The attribute 
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_uncropped_image_fractional_coords`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        attr_name = ("_principal_disk_bounding_box"
+                     "_in_uncropped_image_fractional_coords")
+        attr = getattr(self, attr_name)
+
+        if attr is None:
+            method_name = ("_calc_principal_disk_analysis_results"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._principal_disk_analysis_results = method_alias()
+
+            attr = getattr(self, attr_name)
+
+        principal_disk_bounding_box_in_uncropped_image_fractional_coords = \
+            copy.deepcopy(attr) if (deep_copy == True) else attr
+
+        return principal_disk_bounding_box_in_uncropped_image_fractional_coords
+
+
+
+    @property
+    def principal_disk_bounding_box_in_uncropped_image_fractional_coords(self):
+        r"""`tuple` | `None`: The bounding box of the unclipped support of the 
+        "principal" CBED disk, should it exist, in fractional coordinates of the
+        uncropped CBED pattern.
+
+        See the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_uncropped_image_fractional_coords`
+        for additional context.
+
+        Let ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords``
+        denote the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_uncropped_image_fractional_coords`.
+
+        ``principal_disk_bounding_box_in_uncropped_image_fractional_coords`` is
+        calculated effectively by:
+
+        .. code-block:: python
+
+           import torch
+           
+           pts = \
+               principal_disk_boundary_pts_in_uncropped_image_fractional_coords
+
+           if pts is not None:
+               bounding_box = (torch.amin(pts[:, 0]).item(),
+                               torch.amax(pts[:, 0]).item(),
+                               torch.amin(pts[:, 1]).item(),
+                               torch.amax(pts[:, 1]).item())
+           else:
+               bounding_box = None
+
+           principal_disk_bounding_box_in_uncropped_image_fractional_coords = \
+               bounding_box
+
+        Note that
+        ``principal_disk_bounding_box_in_uncropped_image_fractional_coords``
+        should be considered **read-only**.
+
+        """
+        method_name = ("get_principal_disk_bounding_box"
+                       "_in_uncropped_image_fractional_coords")
+        method_alias = getattr(self, method_name)
+        result = method_alias(deep_copy=True)
+
+        return result
+
+
+
+    def get_principal_disk_boundary_pts_in_cropped_image_fractional_coords(
+            self, deep_copy=_default_deep_copy):
+        r"""Return the sample of points on the boundary of the "principal" CBED 
+        disk, should it exist, in fractional coordinates of the cropped CBED
+        pattern.
+
+        Let ``core_attrs`` denote the attribute
+        :attr:`~fancytypes.Checkable.core_attrs`.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let
+            ``principal_disk_boundary_pts_in_cropped_image_fractional_coords``
+            denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``principal_disk_boundary_pts_in_cropped_image_fractional_coords``
+            is returned.  Otherwise, a reference to
+            ``principal_disk_boundary_pts_in_cropped_image_fractional_coords``
+            is returned.
+
+        Returns
+        -------
+        principal_disk_boundary_pts_in_cropped_image_fractional_coords : `torch.Tensor` (`float`, shape=(core_attrs["disk_boundary_sample_size"], 2)) | `None`
+            The attribute 
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        attr_name = ("_principal_disk_boundary_pts"
+                     "_in_cropped_image_fractional_coords")
+        attr = getattr(self, attr_name)
+
+        if attr is None:
+            method_name = ("_calc_principal_disk_analysis_results"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._principal_disk_analysis_results = method_alias()
+
+            attr = getattr(self, attr_name)
+
+        principal_disk_boundary_pts_in_cropped_image_fractional_coords = \
+            (attr
+             if ((deep_copy == False) or (attr is None))
+             else attr.detach().clone())
+
+        return principal_disk_boundary_pts_in_cropped_image_fractional_coords
+
+
+
+    @property
+    def principal_disk_boundary_pts_in_cropped_image_fractional_coords(self):
+        r"""`torch.Tensor` | `None`: The sample of points on the boundary of the
+        unclipped support of the "principal" CBED disk, should it exist, in 
+        fractional coordinates of the cropped CBED pattern.
+
+        See the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_uncropped_image_fractional_coords`
+        for additional context.
+
+        Let ``core_attrs``,
+        ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords``,
+        and ``signal``, denote the attributes
+        :attr:`~fancytypes.Checkable.core_attrs`
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_uncropped_image_fractional_coords`,
+        and :attr:`fakecbed.discretized.CroppedCBEDPattern.signal` respectively.
+
+        ``principal_disk_boundary_pts_in_cropped_image_fractional_coords`` is
+        calculated effectively by:
+
+        .. code-block:: python
+
+           import torch
+
+           cbed_pattern = core_attrs["cbed_pattern"]
+           N_x = cbed_pattern.core_attrs["num_pixels_across_pattern"]
+           N_y = N_x
+
+           N_W_h, N_W_v = core_attrs["cropping_window_dims_in_pixels"]
+
+           boundary_pts_in_uncropped_image_fractional_coords = \
+               principal_disk_boundary_pts_in_uncropped_image_fractional_coords
+
+           if boundary_pts_in_uncropped_image_fractional_coords is not None:
+
+               kwargs = \
+                   {"input": boundary_pts_in_uncropped_image_fractional_coords}
+               boundary_pts_in_cropped_image_fractional_coords = \
+                   torch.zeros_like(**kwargs)
+
+               boundary_pts_in_cropped_image_fractional_coords[:, 0] = \
+                   ((boundary_pts_in_uncropped_image_fractional_coords[:, 0]
+                     - signal.axes_manager[1].offset) * (N_x/N_W_h)
+                    + (0.5/N_W_h))
+               boundary_pts_in_cropped_image_fractional_coords[:, 1] = \
+                   ((boundary_pts_in_uncropped_image_fractional_coords[:, 1]
+                     - signal.axes_manager[2].offset) * (N_y/N_W_v)
+                    + (1-(1-0.5)/N_W_v))
+           else:
+               boundary_pts_in_cropped_image_fractional_coords = \
+                   None
+
+           principal_disk_boundary_pts_in_cropped_image_fractional_coords = \
+               boundary_pts_in_cropped_image_fractional_coords
+
+        Note that
+        ``principal_disk_boundary_pts_in_cropped_image_fractional_coords``
+        should be considered **read-only**.
+
+        """
+        method_name = ("get_principal_disk_boundary_pts"
+                       "_in_cropped_image_fractional_coords")
+        method_alias = getattr(self, method_name)
+        result = method_alias(deep_copy=True)
+
+        return result
+
+
+
+    def get_principal_disk_bounding_box_in_cropped_image_fractional_coords(
+            self, deep_copy=_default_deep_copy):
+        r"""Return the bounding box of the "principal" CBED disk, should it 
+        exist, in fractional coordinates of the cropped CBED pattern.
+
+        Let ``core_attrs`` denote the attribute
+        :attr:`~fancytypes.Checkable.core_attrs`.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let
+            ``principal_disk_bounding_box_in_cropped_image_fractional_coords``
+            denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_cropped_image_fractional_coords`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``principal_disk_bounding_box_in_cropped_image_fractional_coords``
+            is returned.  Otherwise, a reference to
+            ``principal_disk_bounding_box_in_cropped_image_fractional_coords``
+            is returned.
+
+        Returns
+        -------
+        principal_disk_bounding_box_in_cropped_image_fractional_coords : `torch.Tensor` (`float`, shape=(core_attrs["disk_boundary_sample_size"], 2)) | `None`
+            The attribute 
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_cropped_image_fractional_coords`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        attr_name = ("_principal_disk_bounding_box"
+                     "_in_cropped_image_fractional_coords")
+        attr = getattr(self, attr_name)
+
+        if attr is None:
+            method_name = ("_calc_principal_disk_analysis_results"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._principal_disk_analysis_results = method_alias()
+
+            attr = getattr(self, attr_name)
+
+        principal_disk_bounding_box_in_cropped_image_fractional_coords = \
+            copy.deepcopy(attr) if (deep_copy == True) else attr
+
+        return principal_disk_bounding_box_in_cropped_image_fractional_coords
+
+
+
+    @property
+    def principal_disk_bounding_box_in_cropped_image_fractional_coords(self):
+        r"""`tuple` | `None`: The bounding box of the unclipped support of the 
+        "principal" CBED disk, should it exist, in fractional coordinates of the
+        cropped CBED pattern.
+
+        See the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords`
+        for additional context.
+
+        Let ``principal_disk_boundary_pts_in_cropped_image_fractional_coords``
+        denote the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords`.
+
+        ``principal_disk_bounding_box_in_cropped_image_fractional_coords`` is
+        calculated effectively by:
+
+        .. code-block:: python
+
+           import torch
+           
+           pts = \
+               principal_disk_boundary_pts_in_cropped_image_fractional_coords
+
+           if pts is not None:
+               bounding_box = (torch.amin(pts[:, 0]).item(),
+                               torch.amax(pts[:, 0]).item(),
+                               torch.amin(pts[:, 1]).item(),
+                               torch.amax(pts[:, 1]).item())
+           else:
+               bounding_box = None
+
+           principal_disk_bounding_box_in_cropped_image_fractional_coords = \
+               bounding_box
+
+        Note that
+        ``principal_disk_bounding_box_in_cropped_image_fractional_coords``
+        should be considered **read-only**.
+
+        """
+        method_name = ("get_principal_disk_bounding_box"
+                       "_in_cropped_image_fractional_coords")
+        method_alias = getattr(self, method_name)
+        result = method_alias(deep_copy=True)
+
+        return result
+
+
+
+    def get_disk_supports(self, deep_copy=_default_deep_copy):
+        r"""Return the image stack of the disk supports of the cropped fake CBED
+        pattern.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``disk_supports`` denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_supports`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``disk_supports`` is returned.  Otherwise, a reference to
+            ``disk_supports`` is returned.
+
+        Returns
+        -------
+        disk_supports : `torch.Tensor` (`bool`, ndim=3)
+            The attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_supports`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        if self._disk_supports is None:
+            method_name = "_calc_disk_supports"
+            method_alias = getattr(self, method_name)
+            self._disk_supports = method_alias()
+
+        disk_supports = (self._disk_supports.detach().clone()
+                         if (deep_copy == True)
+                         else self._disk_supports)
+
+        return disk_supports
+
+
+
+    def _calc_disk_supports(self):
+        N_W_h, N_W_v = self._cropping_window_dims_in_pixels
+        L, R, B, T = self._mask_frame  # Mask frame of cropped pattern.
+
+        uncropped_cbed_pattern_disk_supports = \
+            self._cbed_pattern.get_disk_supports(deep_copy=False)
+        uncropped_cbed_pattern_disk_supports = \
+            uncropped_cbed_pattern_disk_supports.cpu().detach().clone()
+
+        signal_to_crop = \
+            self._generate_uncropped_blank_signal()
+        signal_to_crop.data[3:] = \
+            uncropped_cbed_pattern_disk_supports.numpy(force=True)[:]
+
+        optional_params = self._generate_optional_cropping_params()
+
+        kwargs = {"input_signal": signal_to_crop,
+                  "optional_params": optional_params}
+        cropped_signal = empix.crop(**kwargs)
+
+        disk_supports = cropped_signal.data[3:]
+        disk_supports_dtype = uncropped_cbed_pattern_disk_supports.dtype
+        disk_supports = torch.from_numpy(disk_supports)
+        disk_supports = disk_supports.to(device=self._device,
+                                         dtype=disk_supports_dtype)
+        disk_supports[:, :T, :] = 0
+        disk_supports[:, max(N_W_v-B, 0):, :] = 0
+        disk_supports[:, :, :L] = 0
+        disk_supports[:, :, max(N_W_h-R, 0):] = 0
+
+        return disk_supports
+
+
+
+    @property
+    def disk_supports(self):
+        r"""`torch.Tensor`: The image stack of the disk supports of the cropped
+        fake CBED pattern.
+
+        See the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal` for additional
+        context.
+
+        Let ``signal``, ``device``, and ``core_attrs`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.device`, and
+        :attr:`~fancytypes.Checkable.core_attrs` respectively.
+
+        ``disk_supports`` is calculated effectively by:
+
+        .. code-block:: python
+
+           N_W_h, N_W_v = core_attrs["cropping_window_dims_in_pixels"]
+           L, R, B, T = core_attrs["mask_frame"]
+
+           disk_supports = signal.data[3:]
+           disk_supports = torch.from_numpy(disk_supports)
+           disk_supports = disk_supports.to(device=device, dtype=bool)
+           disk_supports[:, :T, :] = 0
+           disk_supports[:, max(N_W_v-B, 0):, :] = 0
+           disk_supports[:, :, :L] = 0
+           disk_supports[:, :, max(N_W_h-R, 0):] = 0
+
+        Note that ``disk_supports`` should be considered **read-only**.
+
+        """
+        result = self.get_disk_supports(deep_copy=True)
+
+        return result
+
+
+
+    def get_disk_clipping_registry(self, deep_copy=_default_deep_copy):
+        r"""Return the disk clipping registry of the cropped fake CBED pattern.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``disk_clipping_registry`` denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_clipping_registry`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``disk_clipping_registry`` is returned.  Otherwise, a reference to
+            ``disk_clipping_registry`` is returned.
+
+        Returns
+        -------
+        disk_clipping_registry : `torch.Tensor` (`bool`, ndim=1)
+            The attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_clipping_registry`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        if self._disk_clipping_registry is None:
+            method_name = ("_calc_disk_clipping_registry"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._disk_clipping_registry = method_alias()
+
+        disk_clipping_registry = (self._disk_clipping_registry.detach().clone()
+                                  if (deep_copy == True)
+                                  else self._disk_clipping_registry)
+
+        return disk_clipping_registry
+
+
+    
+    def _calc_disk_clipping_registry_and_cache_select_intermediates(self):
+        num_disks = self._num_disks
+
+        if num_disks > 0:
+            if self._disk_supports is None:
+                method_name = "_calc_disk_supports"
+                method_alias = getattr(self, method_name)
+                self._disk_supports = method_alias()
+            disk_supports = self._disk_supports
+
+            clip_support = self._calc_clip_support()
+
+            disk_clipping_map = disk_supports*clip_support[None, :, :]
+    
+            disk_clipping_registry = ((disk_clipping_map.sum(dim=(1, 2)) != 0)
+                                      + (disk_supports.sum(dim=(1, 2)) == 0))
+        else:
+            disk_clipping_registry = torch.zeros((num_disks,),
+                                                 device=self._device,
+                                                 dtype=torch.bool)
+
+        return disk_clipping_registry
+
+
+
+    def _calc_clip_support(self):
+        cbed_pattern = self._cbed_pattern
+        
+        cbed_pattern_core_attrs = cbed_pattern.get_core_attrs(deep_copy=False)
+        
+        illumination_support = \
+            cbed_pattern.get_illumination_support(deep_copy=False)
+        illumination_support = \
+            illumination_support.cpu().detach().clone()
+
+        L, R, B, T = cbed_pattern._mask_frame
+
+        N_x = cbed_pattern_core_attrs["num_pixels_across_pattern"]
+        N_y = N_x
+
+        signal_to_crop = self._generate_uncropped_blank_signal()
+        signal_to_crop.data[0] = illumination_support.numpy(force=True)
+        signal_to_crop.data[0, :T, :] = 0
+        signal_to_crop.data[0, max(N_y-B, 0):, :] = 0
+        signal_to_crop.data[0, :, :L] = 0
+        signal_to_crop.data[0, :, max(N_x-R, 0):] = 0
+
+        optional_params = self._generate_optional_cropping_params()
+
+        kwargs = {"input_signal": signal_to_crop,
+                  "optional_params": optional_params}
+        cropped_signal = empix.crop(**kwargs)
+        
+        clip_support = torch.from_numpy(1.0-cropped_signal.data[0])
+        clip_support = clip_support.to(device=self._device, dtype=torch.float)
+        for _ in range(2):
+            clip_support = torch.unsqueeze(clip_support, dim=0)
+
+        conv_weights = torch.ones((1, 1, 3, 3), device=self._device)
+
+        N_W_h, N_W_v = self._cropping_window_dims_in_pixels
+        L, R, B, T = self._mask_frame  # Mask frame of cropped pattern.
+
+        kwargs = {"input": clip_support,
+                  "weight": conv_weights,
+                  "padding": "same"}
+        clip_support = (torch.nn.functional.conv2d(**kwargs) != 0)[0, 0]
+        clip_support[:T+1, :] = True
+        clip_support[max(N_W_v-B-1, 0):, :] = True
+        clip_support[:, :L+1] = True
+        clip_support[:, max(N_W_h-R-1, 0):] = True
+
+        return clip_support
+
+
+
+    @property
+    def disk_clipping_registry(self):
+        r"""`torch.Tensor`: The disk clipping registry of the cropped fake CBED 
+        pattern.
+
+        See the summary documentation for the classes
+        :class:`fakecbed.discretized.CBEDPattern`, and
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context.
+
+        Let ``num_disks``, ``disk_supports``, ``illumination_support``, and
+        ``image`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.num_disks`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_supports`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.illumination_support`,
+        and :attr:`fakecbed.discretized.CroppedCBEDPattern.image`
+        respectively. Moreover, let ``k`` be a nonnegative integer less than
+        ``num_disks``.
+
+        ``disk_clipping_registry`` is a one-dimensional PyTorch tensor of length
+        equal to ``num_disks``. If ``disk_clipping_registry[k]`` is equal to
+        ``False``, then the image stored in ``disk_supports[k]`` has at least
+        one nonzero pixel, and that the position of every nonzero pixel of said
+        image is at least two pixels away from (i.e. at least pixel-wise
+        next-nearest neighbours to) the position of every zero-valued pixel of
+        the image stored in ``illumination_support``, at least two pixels away
+        from the position of every pixel inside any of the mask frames that
+        appears in the image stored in ``image``, and at least one pixel away
+        from every pixel bordering the image stored in ``image``. Otherwise, if
+        ``disk_clipping_registry[k]`` is equal to ``True``, then the opposite of
+        the above scenario is true.
+
+        Note that there are potentially two mask frames that may appear in the
+        image stored in ``image``: the mask frame applied to the uncropped fake
+        CBED pattern, and the mask frame that is applied after cropping the fake
+        CBED pattern.
+
+        Note that ``disk_clipping_registry`` should be considered **read-only**.
+
+        """
+        result = self.get_disk_clipping_registry(deep_copy=True)
+
+        return result
+
+
+
+    def get_disk_absence_registry(self, deep_copy=_default_deep_copy):
+        r"""Return the disk absence registry of the cropped fake CBED pattern.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``disk_absence_registry`` denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_absence_registry`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``disk_absence_registry`` is returned.  Otherwise, a reference to
+            ``disk_absence_registry`` is returned.
+
+        Returns
+        -------
+        disk_absence_registry : `torch.Tensor` (`bool`, ndim=1)
+            The attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_absence_registry`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        if self._disk_absence_registry is None:
+            method_name = ("_calc_disk_absence_registry"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._disk_absence_registry = method_alias()
+
+        disk_absence_registry = (self._disk_absence_registry.detach().clone()
+                                 if (deep_copy == True)
+                                 else self._disk_absence_registry)
+
+        return disk_absence_registry
+
+
+    
+    def _calc_disk_absence_registry_and_cache_select_intermediates(self):
+        num_disks = self._num_disks
+
+        if num_disks > 0:
+            if self._disk_supports is None:
+                method_name = "_calc_disk_supports"
+                method_alias = getattr(self, method_name)
+                self._disk_supports = method_alias()
+            disk_supports = self._disk_supports
+
+            disk_absence_registry = (disk_supports.sum(dim=(1, 2)) == 0)
+        else:
+            disk_absence_registry = torch.zeros((num_disks,),
+                                                 device=self._device,
+                                                 dtype=torch.bool)
+    
+        return disk_absence_registry
+
+
+
+    @property
+    def disk_absence_registry(self):
+        r"""`torch.Tensor`: The disk absence registry of the cropped fake CBED 
+        pattern.
+
+        See the summary documentation for the classes
+        :class:`fakecbed.discretized.CBEDPattern`, and
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context.
+
+        Let ``num_disks``, and ``disk_supports`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.num_disks`, and
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_supports`
+        respectively. Moreover, let ``k`` be a nonnegative integer less than
+        ``num_disks``.
+
+        ``disk_absence_registry`` is a one-dimensional PyTorch tensor of length
+        equal to ``num_disks``. If ``disk_absence_registry[k]`` is equal to
+        ``False``, then the image stored in ``disk_supports[k]`` has at least
+        one nonzero pixel. Otherwise, if ``disk_absence_registry[k]`` is equal
+        to ``True``, then the opposite of the above scenario is true.
+
+        Note that ``disk_absence_registry`` should be considered **read-only**.
+
+        """
+        result = self.get_disk_absence_registry(deep_copy=True)
+
+        return result
+
+
+
+    @property
+    def principal_disk_is_clipped(self):
+        r"""`bool`: Equals ``True`` if the "principal" CBED disk either does not
+        exists, or it exists and is clipped in image of the cropped fake CBED 
+        pattern.
+
+        See the summary documentation for the class
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context,
+        as well as the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_clipping_registry`.
+
+        Let ``core_attrs``, ``num_disks``, and ``disk_clipping_registry`` denote
+        the attributes :attr:`~fancytypes.Checkable.core_attrs`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.num_disks`, and
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_clipping_registry`
+        respectively.
+
+        ``principal_disk_is_clipped`` is calculated effectively by:
+
+        .. code-block:: python
+
+           principal_disk_idx = \
+               core_attrs["principal_disk_idx"]
+           principal_disk_is_clipped = \
+               (disk_clipping_registry[principal_disk_idx].item()
+                if (principal_disk_idx < num_disks)
+                else True)
+
+        Note that ``principal_disk_is_clipped`` should be considered
+        **read-only**.
+
+        """
+        if self._principal_disk_is_clipped is None:
+            method_name = ("_calc_principal_disk_is_clipped"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._principal_disk_is_clipped = method_alias()
+
+        result = self._principal_disk_is_clipped
+        
+        return result
+
+
+
+    def _calc_principal_disk_is_clipped_and_cache_select_intermediates(self):
+        principal_disk_idx = self._principal_disk_idx
+        num_disks = self._num_disks
+
+        if principal_disk_idx < num_disks:
+            if self._disk_clipping_registry is None:
+                method_name = ("_calc_disk_clipping_registry"
+                               "_and_cache_select_intermediates")
+                method_alias = getattr(self, method_name)
+                self._disk_clipping_registry = method_alias()
+            disk_clipping_registry = self._disk_clipping_registry
+
+            disk_idx = principal_disk_idx
+            principal_disk_is_clipped = disk_clipping_registry[disk_idx].item()
+        else:
+            principal_disk_is_clipped = True
+
+        return principal_disk_is_clipped
+
+
+
+    @property
+    def principal_disk_is_absent(self):
+        r"""`bool`: Equals ``True`` if the "principal" CBED disk either does not
+        exists, or it exists and is absent from the image of the cropped fake 
+        CBED pattern.
+
+        See the summary documentation for the class
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context,
+        as well as the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_absence_registry`.
+
+        Let ``core_attrs``, ``num_disks``, and ``disk_absence_registry`` denote
+        the attributes :attr:`~fancytypes.Checkable.core_attrs`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.num_disks`, and
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_absence_registry`
+        respectively.
+
+        ``principal_disk_is_absent`` is calculated effectively by:
+
+        .. code-block:: python
+
+           principal_disk_idx = \
+               core_attrs["principal_disk_idx"]
+           principal_disk_is_absent = \
+               (disk_absence_registry[principal_disk_idx].item()
+                if (principal_disk_idx < num_disks)
+                else True)
+
+        Note that ``principal_disk_is_absent`` should be considered
+        **read-only**.
+
+        """
+        if self._principal_disk_is_absent is None:
+            method_name = ("_calc_principal_disk_is_absent"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._principal_disk_is_absent = method_alias()
+
+        result = self._principal_disk_is_absent
+        
+        return result
+
+
+    
+    def _calc_principal_disk_is_absent_and_cache_select_intermediates(self):
+        principal_disk_idx = self._principal_disk_idx
+        num_disks = self._num_disks
+
+        if principal_disk_idx < num_disks:
+            if self._disk_absence_registry is None:
+                method_name = ("_calc_disk_absence_registry"
+                               "_and_cache_select_intermediates")
+                method_alias = getattr(self, method_name)
+                self._disk_absence_registry = method_alias()
+            disk_absence_registry = self._disk_absence_registry
+
+            disk_idx = principal_disk_idx
+            principal_disk_is_absent = disk_absence_registry[disk_idx].item()
+        else:
+            principal_disk_is_absent = True
+
+        return principal_disk_is_absent
+
+
+
+    def get_signal(self, deep_copy=_default_deep_copy):
+        r"""Return the hyperspy signal representation of the cropped fake CBED 
+        pattern.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``signal`` denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.signal`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of ``signal``
+            is returned.  Otherwise, a reference to ``signal`` is returned.
+
+        Returns
+        -------
+        signal : :class:`hyperspy._signals.signal2d.Signal2D`
+            The attribute 
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.signal`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        if self._signal is None:
+            method_name = "_calc_signal_and_cache_select_intermediates"
+            method_alias = getattr(self, method_name)
+            self._signal = method_alias()
+
+        signal = (copy.deepcopy(self._signal)
+                  if (deep_copy == True)
+                  else self._signal)
+
+        return signal
+
+
+
+    def _calc_signal_and_cache_select_intermediates(self):
+        method_name = "_calc_signal_metadata_and_cache_select_intermediates"
+        method_alias = getattr(self, method_name)
+        signal_metadata = method_alias()
+
+        optional_params = self._generate_optional_cropping_params()
+
+        kwargs = {"input_signal": \
+                  self._cbed_pattern.get_signal(deep_copy=False),
+                  "optional_params": \
+                  optional_params}
+        signal_data = empix.crop(**kwargs).data
+
+        N_W_h, N_W_v = self._cropping_window_dims_in_pixels
+        L, R, B, T = self._mask_frame  # Mask frame of cropped pattern.
+
+        signal_data[:, :T, :] = 0
+        signal_data[:, max(N_W_v-B, 0):, :] = 0
+        signal_data[:, :, :L] = 0
+        signal_data[:, :, max(N_W_h-R, 0):] = 0
+
+        matrix_to_normalize = torch.from_numpy(signal_data[0])
+        kwargs = {"input_matrix": matrix_to_normalize.to(device=self._device)}
+        normalized_matrix = self._cbed_pattern._normalize_matrix(**kwargs)
+
+        signal_data[0] = \
+            normalized_matrix.cpu().detach().clone().numpy(force=True)
+
+        signal = \
+            hyperspy.signals.Signal2D(data=signal_data,
+                                      metadata=signal_metadata)
+        signal.axes_manager = \
+            self._generate_cropped_blank_signal().axes_manager
+        
+        signal.axes_manager[0].name = \
+            r"cropped fake CBED pattern attribute"
+        signal.axes_manager[1].name = \
+            r"fractional horizontal coordinate of uncropped fake CBED pattern"
+        signal.axes_manager[2].name = \
+            r"fractional vertical coordinate of uncropped fake CBED pattern"
+
+        return signal
+
+
+
+    def _calc_signal_metadata_and_cache_select_intermediates(self):
+        cbed_pattern_signal = self._cbed_pattern.get_signal(deep_copy=False)
+
+        title = "Cropped " + cbed_pattern_signal.metadata.General.title
+
+        pre_serialized_core_attrs = self.pre_serialize()
+
+        attr_name_subset = ("_principal_disk_analysis_results",
+                            "_disk_clipping_registry",
+                            "_disk_absence_registry",
+                            "_principal_disk_is_clipped",
+                            "_principal_disk_is_absent")
+        for attr_name in attr_name_subset:
+            attr = getattr(self, attr_name)
+            if attr is None:
+                method_name = ("_calc{}_and_cache_select"
+                               "_intermediates").format(attr_name)
+                method_alias = getattr(self, method_name)
+                attr = method_alias()
+                setattr(self, attr_name, attr)
+        
+        fakecbed_metadata = \
+            cbed_pattern_signal.metadata.FakeCBED.as_dictionary()
+        fakecbed_metadata["pre_serialized_core_attrs"] = \
+            pre_serialized_core_attrs
+
+        attr_name_subset += ("_principal_disk_bounding_box"
+                             "_in_uncropped_image_fractional_coords",
+                             "_principal_disk_bounding_box"
+                             "_in_cropped_image_fractional_coords",
+                             "_principal_disk_boundary_pts"
+                             "_in_uncropped_image_fractional_coords",
+                             "_principal_disk_boundary_pts"
+                             "_in_cropped_image_fractional_coords")
+        for attr_name in attr_name_subset[1:]:
+            key = attr_name[1:]
+            attr = getattr(self, attr_name)
+            metadata_item = self._convert_attr_to_metadata_item(attr)
+            fakecbed_metadata[key] = metadata_item
+
+        signal_metadata = {"General": {"title": title},
+                           "Signal": {"pixel value units": "dimensionless"},
+                           "FakeCBED": fakecbed_metadata}
+
+        return signal_metadata
+
+
+
+    def _convert_attr_to_metadata_item(self, attr):
+        if isinstance(attr, (tuple, bool)):
+            metadata_item = attr
+        else:
+            if len(attr.shape) == 1:
+                metadata_item = tuple(elem
+                                      for elem
+                                      in attr.cpu().detach().clone().tolist())
+            else:
+                metadata_item = tuple(tuple(pt)
+                                      for pt
+                                      in attr.cpu().detach().clone().tolist())
+
+        return metadata_item
+
+
+
+    @property
+    def signal(self):
+        r"""`hyperspy._signals.signal2d.Signal2D`: The hyperspy signal 
+        representation of the cropped fake CBED pattern.
+
+        See the summary documentation for the classes
+        :class:`fakecbed.discretized.CBEDPattern` and
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context.
+
+        Let
+        ``principal_disk_bounding_box_in_uncropped_image_fractional_coords``,
+        ``principal_disk_bounding_box_in_cropped_image_fractional_coords``,
+        ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords``,
+        ``principal_disk_boundary_pts_in_cropped_image_fractional_coords``, and
+        ``core_attrs`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_uncropped_image_fractional_coords`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_cropped_image_fractional_coords`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_uncropped_image_fractional_coords`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_cropped_image_fractional_coords`,
+        and :attr:`~fancytypes.Checkable.core_attrs` respectively. Furthermore,
+        let ``pre_serialize`` denote the method
+        :meth:`~fancytypes.PreSerializable.pre_serialize`.
+
+        ``signal`` is calculated effectively by:
+
+        .. code-block:: python
+
+           import empix
+           import numpy as np
+
+           cbed_pattern = core_attrs["cbed_pattern"]
+           N_W_h, N_W_v = core_attrs["cropping_window_dims_in_pixels"]
+           L, R, B, T = core_attrs["mask_frame"]
+
+           cbed_pattern_signal = cbed_pattern.signal
+
+           title = "Cropped " + cbed_pattern_signal.metadata.General.title
+
+           cropping_window_center = \
+               core_attrs["cropping_window_center"]
+           cropping_window_dims_in_pixels = \
+               core_attrs["cropping_window_dims_in_pixels"]
+
+           kwargs = {"center": cropping_window_center,
+                     "window_dims": cropping_window_dims_in_pixels,
+                     "pad_mode": "zeros",
+                     "apply_symmetric_mask": False}
+           optional_params = empix.OptionalCroppingParams(**kwargs)
+
+           kwargs = {"input_signal": cbed_pattern_signal,
+                     "optional_params": optional_params}
+           signal = empix.crop(**kwargs)
+
+           signal.data[:3, :T, :] = 0
+           signal.data[:3, max(N_W_v-B, 0):, :] = 0
+           signal.data[:3, :, :L] = 0
+           signal.data[:3, :, max(N_W_h-R, 0):] = 0
+
+           # Normalize ``signal.data[0]``.
+           matrix = signal.data[0]
+           if matrix.max()-matrix.min() > 0:
+               normalization_weight = 1 / (matrix.max()-matrix.min())
+               normalization_bias = -normalization_weight*matrix.min()
+               matrix = (matrix*normalization_weight
+                         + normalization_bias).clip(min=0, max=1)
+           else:
+               matrix = np.zeros_like(matrix)
+           signal.data[0] = matrix
+
+           kwargs = {"item_path": "General.title", "value": title}
+           signal.metadata.set_item(**kwargs)
+
+           kwargs["item_path"] = "FakeCBED.pre_serialized_core_attrs"
+           kwargs["value"] = pre_serialize()
+           signal.metadata.set_item(**kwargs)
+
+           tensor = \
+               principal_disk_bounding_box_in_uncropped_image_fractional_coords
+           kwargs["item_path"] = \
+               ("FakeCBED.principal_disk_bounding_box"
+                "_in_uncropped_image_fractional_coords")
+           kwargs["value"] = \
+               tuple(tensor.cpu().detach().clone().tolist())
+           _ = \
+               signal.metadata.set_item(**kwargs)
+
+           tensor = \
+               principal_disk_bounding_box_in_cropped_image_fractional_coords
+           kwargs["item_path"] = \
+               ("FakeCBED.principal_disk_bounding_box"
+                "_in_cropped_image_fractional_coords")
+           kwargs["value"] = \
+               tuple(tensor.cpu().detach().clone().tolist())
+           _ = \
+               signal.metadata.set_item(**kwargs)
+
+           tensor = \
+               principal_disk_boundary_pts_in_uncropped_image_fractional_coords
+           kwargs["item_path"] = \
+               ("FakeCBED.principal_disk_boundary_pts"
+                "_in_uncropped_image_fractional_coords")
+           kwargs["value"] = \
+               tuple(tensor.cpu().detach().clone().tolist())
+           _ = \
+               signal.metadata.set_item(**kwargs)
+
+           tensor = \
+               principal_disk_boundary_pts_in_cropped_image_fractional_coords
+           kwargs["item_path"] = \
+               ("FakeCBED.principal_disk_boundary_pts"
+                "_in_cropped_image_fractional_coords")
+           kwargs["value"] = \
+               tuple(tensor.cpu().detach().clone().tolist())
+           _ = \
+               signal.metadata.set_item(**kwargs)
+
+        Note that ``signal`` should be considered **read-only**.
+
+        """
+        result = self.get_signal(deep_copy=True)
+        
+        return result
+
+
+
+    @property
+    def image_has_been_overridden(self):
+        r"""`bool`: Equals ``True`` if the image of the fake cropped CBED 
+        pattern has been overridden.
+
+        See the summary documentation for the classes
+        :class:`fakecbed.discretized.CBEDPattern` and
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context,
+        as well as the documentation for the attribute
+        :attr:`fakecbed.discretized.CBEDPattern.image_has_been_overridden`.
+
+        Let ``core_attrs`` denote the attribute
+        :attr:`~fancytypes.Checkable.core_attrs`.
+
+        ``image_has_been_overridden`` is calculated effectively by:
+
+        .. code-block:: python
+
+           cbed_pattern = core_attrs["cbed_pattern"]
+           image_has_been_overridden = cbed_pattern.image_has_been_overridden
+
+        Note that ``image_has_been_overridden`` should be considered
+        **read-only**.
+
+        """
+        result = self._image_has_been_overridden
+        
+        return result
+
+
+
+    def get_image(self, deep_copy=_default_deep_copy):
+        r"""Return the image of the cropped fake CBED pattern.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``image`` denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.image`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of ``image``
+            is returned.  Otherwise, a reference to ``image`` is returned.
+
+        Returns
+        -------
+        image : `torch.Tensor` (`float`, ndim=2)
+            The attribute :attr:`fakecbed.discretized.CroppedCBEDPattern.image`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        if self._image is None:
+            method_name = "_calc_image"
+            method_alias = getattr(self, method_name)
+            self._image = method_alias()
+
+        image = (self._image.detach().clone()
+                 if (deep_copy == True)
+                 else self._image)
+
+        return image
+
+
+
+    def _calc_image(self):
+        uncropped_cbed_pattern_image = \
+            self._cbed_pattern.get_image(deep_copy=False)
+        uncropped_cbed_pattern_image = \
+            uncropped_cbed_pattern_image.cpu().detach().clone()
+
+        signal_to_crop = \
+            self._generate_uncropped_blank_signal()
+        signal_to_crop.data[0] = \
+            uncropped_cbed_pattern_image.numpy(force=True)
+
+        optional_params = self._generate_optional_cropping_params()
+
+        kwargs = {"input_signal": signal_to_crop,
+                  "optional_params": optional_params}
+        cropped_signal = empix.crop(**kwargs)
+
+        image = cropped_signal.data[0]
+        image_dtype = uncropped_cbed_pattern_image.dtype
+        image = torch.from_numpy(image)
+        image = image.to(device=self._device, dtype=image_dtype)
+
+        N_W_h, N_W_v = self._cropping_window_dims_in_pixels
+        L, R, B, T = self._mask_frame  # Mask frame of cropped pattern.
+
+        image[:T, :] = 0
+        image[max(N_W_v-B, 0):, :] = 0
+        image[:, :L] = 0
+        image[:, max(N_W_h-R, 0):] = 0
+
+        kwargs = {"input_matrix": image}
+        image = self._cbed_pattern._normalize_matrix(**kwargs)
+
+        return image
+
+
+
+    @property
+    def image(self):
+        r"""`torch.Tensor`: The image of the cropped fake CBED pattern.
+
+        See the documentation for the attribute
+        :attr:`fakecbed.discretized.CBEDPattern.signal` for additional
+        context.
+
+        Let ``signal``, ``device``, and ``core_attrs`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.device`, and
+        :attr:`~fancytypes.Checkable.core_attrs` respectively.
+
+        ``image`` is calculated effectively by:
+
+        .. code-block:: python
+
+           N_W_h, N_W_v = core_attrs["cropping_window_dims_in_pixels"]
+           L, R, B, T = core_attrs["mask_frame"]
+
+           image = signal.data[0]
+           image_dtype = image.dtype
+           image = torch.from_numpy(image)
+           image = image.to(device=device, dtype=image_dtype)
+           image[:T, :] = 0
+           image[max(N_W_v-B, 0):, :] = 0
+           image[:, :L] = 0
+           image[:, max(N_W_h-R, 0):] = 0
+
+        Note that ``image`` should be considered **read-only**.
+
+        """
+        result = self.get_image(deep_copy=True)
+
+        return result
+
+
+
+    def get_illumination_support(self, deep_copy=_default_deep_copy):
+        r"""Return the illumination support of the cropped fake CBED pattern.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``illumination_support`` denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.illumination_support`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``illumination_support`` is returned.  Otherwise, a reference to
+            ``illumination_support`` is returned.
+
+        Returns
+        -------
+        illumination_support : `torch.Tensor` (`float`, ndim=2)
+            The attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.illumination_support`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        if self._illumination_support is None:
+            method_name = "_calc_illumination_support"
+            method_alias = getattr(self, method_name)
+            self._illumination_support = method_alias()
+
+        illumination_support = (self._illumination_support.detach().clone()
+                 if (deep_copy == True)
+                 else self._illumination_support)
+
+        return illumination_support
+
+
+
+    def _calc_illumination_support(self):
+        uncropped_cbed_pattern_illumination_support = \
+            self._cbed_pattern.get_illumination_support(deep_copy=False)
+        uncropped_cbed_pattern_illumination_support = \
+            uncropped_cbed_pattern_illumination_support.cpu().detach().clone()
+
+        signal_to_crop = \
+            self._generate_uncropped_blank_signal()
+        signal_to_crop.data[1] = \
+            uncropped_cbed_pattern_illumination_support.numpy(force=True)
+
+        optional_params = self._generate_optional_cropping_params()
+
+        kwargs = {"input_signal": signal_to_crop,
+                  "optional_params": optional_params}
+        cropped_signal = empix.crop(**kwargs)
+
+        illumination_support = \
+            cropped_signal.data[1]
+        illumination_support_dtype = \
+            uncropped_cbed_pattern_illumination_support.dtype
+        illumination_support = \
+            torch.from_numpy(illumination_support)
+        illumination_support = \
+            illumination_support.to(device=self._device,
+                                    dtype=illumination_support_dtype)
+
+        return illumination_support
+
+
+
+    @property
+    def illumination_support(self):
+        r"""`torch.Tensor`: The illumination support of the cropped fake CBED 
+        pattern.
+
+        See the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal` for additional
+        context.
+
+        Let ``signal``, and ``device`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal`, and
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.device` respectively.
+
+        ``illumination_support`` is calculated effectively by:
+
+        .. code-block:: python
+
+           illumination_support = signal.data[1]
+           illumination_support = torch.from_numpy(illumination_support)
+           illumination_support = illumination_support.to(device=device, 
+                                                          dtype=bool)
+
+        Note that ``illumination_support`` should be considered **read-only**.
+
+        """
+        result = self.get_illumination_support(deep_copy=True)
+
+        return result
+
+
+
+    def get_disk_overlap_map(self, deep_copy=_default_deep_copy):
+        r"""Return the image of the disk overlap map of the cropped fake CBED 
+        pattern.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``disk_overlap_map`` denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_overlap_map`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``disk_overlap_map`` is returned.  Otherwise, a reference to
+            ``disk_overlap_map`` is returned.
+
+        Returns
+        -------
+        disk_overlap_map : `torch.Tensor` (`int`, ndim=2)
+            The attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_overlap_map`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        if self._disk_overlap_map is None:
+            method_name = ("_calc_disk_overlap_map")
+            method_alias = getattr(self, method_name)
+            self._disk_overlap_map = method_alias()
+
+        disk_overlap_map = (self._disk_overlap_map.detach().clone()
+                            if (deep_copy == True)
+                            else self._disk_overlap_map)
+
+        return disk_overlap_map
+
+
+
+    def _calc_disk_overlap_map(self):
+        uncropped_cbed_pattern_disk_overlap_map = \
+            self._cbed_pattern.get_disk_overlap_map(deep_copy=False)
+        uncropped_cbed_pattern_disk_overlap_map = \
+            uncropped_cbed_pattern_disk_overlap_map.cpu().detach().clone()
+
+        signal_to_crop = \
+            self._generate_uncropped_blank_signal()
+        signal_to_crop.data[2] = \
+            uncropped_cbed_pattern_disk_overlap_map.numpy(force=True)
+
+        optional_params = self._generate_optional_cropping_params()
+
+        kwargs = {"input_signal": signal_to_crop,
+                  "optional_params": optional_params}
+        cropped_signal = empix.crop(**kwargs)
+
+        N_W_h, N_W_v = self._cropping_window_dims_in_pixels
+        L, R, B, T = self._mask_frame  # Mask frame of cropped pattern.
+
+        disk_overlap_map = cropped_signal.data[2]
+        disk_overlap_map_dtype = uncropped_cbed_pattern_disk_overlap_map.dtype
+        disk_overlap_map = torch.from_numpy(disk_overlap_map)
+        disk_overlap_map = disk_overlap_map.to(device=self._device,
+                                               dtype=disk_overlap_map_dtype)
+        disk_overlap_map[:T, :] = 0
+        disk_overlap_map[max(N_W_v-B, 0):, :] = 0
+        disk_overlap_map[:, :L] = 0
+        disk_overlap_map[:, max(N_W_h-R, 0):] = 0
+    
+        return disk_overlap_map
+
+
+
+    @property
+    def disk_overlap_map(self):
+        r"""`torch.Tensor`: The image of the disk overlap map of the cropped 
+        fake CBED pattern.
+
+        See the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal` for additional
+        context.
+
+        Let ``signal``, ``device``, and ``core_attrs`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.device`, and
+        :attr:`~fancytypes.Checkable.core_attrs` respectively.
+
+        ``disk_overlap_map`` is calculated effectively by:
+
+        .. code-block:: python
+
+           N_W_h, N_W_v = core_attrs["cropping_window_dims_in_pixels"]
+           L, R, B, T = core_attrs["mask_frame"]
+
+           disk_overlap_map = signal.data[2]
+           disk_overlap_map = torch.from_numpy(disk_overlap_map)
+           disk_overlap_map = disk_overlap_map.to(device=device, dtype=int)
+           disk_overlap_map[:T, :] = 0
+           disk_overlap_map[max(N_W_v-B, 0):, :] = 0
+           disk_overlap_map[:, :L] = 0
+           disk_overlap_map[:, max(N_W_h-R, 0):] = 0
+
+        Note that ``disk_overlap_map`` should be considered **read-only**.
+
+        """
+        result = self.get_disk_overlap_map(deep_copy=True)
+
         return result
 
 
@@ -2594,3 +5171,11 @@ _check_and_convert_overriding_image_err_msg_1 = \
 _cbed_pattern_err_msg_1 = \
     ("Failed to generate discretized fake CBED pattern. See traceback for "
      "details.")
+
+_check_and_convert_cropping_window_center_err_msg_1 = \
+    ("The object ``cropping_window_center`` must be `NoneType` or a pair of "
+     "real numbers.")
+
+_check_and_convert_cropping_window_dims_in_pixels_err_msg_1 = \
+    ("The object ``cropping_window_dims_in_pixels`` must be `NoneType` or a "
+     "pair of positive integers.")

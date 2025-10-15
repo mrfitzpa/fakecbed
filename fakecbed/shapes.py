@@ -213,7 +213,7 @@ _default_skip_validation_and_conversion = False
 class BaseShape(fancytypes.PreSerializableAndUpdatable):
     r"""The intensity pattern of an undistorted geometric shape.
 
-    See the summary documentation of the module :mod:`fakecbed.shapes` for
+    See the summary documentation for the module :mod:`fakecbed.shapes` for
     additional context.
 
     One cannot construct an instance of the class
