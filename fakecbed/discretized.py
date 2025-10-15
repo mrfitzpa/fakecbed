@@ -3564,14 +3564,14 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
         8. Calculate
         
         .. math ::
-            q_{x;l}\leftarrow T_{\wasylozenge;x}\left(u_{x;l},u_{y;l}\right)
+            q_{x;l}\leftarrow T_{⌑;x}\left(u_{x;l},u_{y;l}\right)
             \text{ for }l\in X_{1},
             :label: q_x_l__1
 
         and
 
         .. math ::
-            q_{y;l}\leftarrow T_{\wasylozenge;y}\left(u_{x;l},u_{y;l}\right)
+            q_{y;l}\leftarrow T_{⌑;y}\left(u_{x;l},u_{y;l}\right)
             \text{ for }l\in X_{1}.
             :label: q_y_l__1
 
@@ -4704,10 +4704,10 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
                      "optional_params": optional_params}
            signal = empix.crop(**kwargs)
 
-           signal.data[:3, :T, :] = 0
-           signal.data[:3, max(N_W_v-B, 0):, :] = 0
-           signal.data[:3, :, :L] = 0
-           signal.data[:3, :, max(N_W_h-R, 0):] = 0
+           signal.data[:, :T, :] = 0
+           signal.data[:, max(N_W_v-B, 0):, :] = 0
+           signal.data[:, :, :L] = 0
+           signal.data[:, :, max(N_W_h-R, 0):] = 0
 
            # Normalize ``signal.data[0]``.
            matrix = signal.data[0]
