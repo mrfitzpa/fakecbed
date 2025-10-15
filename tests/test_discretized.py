@@ -404,6 +404,34 @@ def generate_cold_pixels(num_pixels_across_pattern):
 
 
 
+def generate_cropped_cbed_pattern():
+    kwargs = generate_cropped_cbed_pattern_ctor_params()
+    cropped_cbed_pattern = fakecbed.discretized.CroppedCBEDPattern(**kwargs)
+
+    return cropped_cbed_pattern
+
+
+
+def generate_cropped_cbed_pattern_ctor_params():
+    cropped_cbed_pattern_ctor_params = {"cbed_pattern": \
+                                        generate_cbed_pattern(),
+                                        "cropping_window_center": \
+                                        (0.35, 0.35),
+                                        "cropping_window_dims_in_pixels": \
+                                        (75, 75),
+                                        "principal_disk_idx": \
+                                        1,
+                                        "disk_boundary_sample_size": \
+                                        32,
+                                        "mask_frame": \
+                                        (3, 12, 8, 2),
+                                        "skip_validation_and_conversion": \
+                                        False}
+
+    return cropped_cbed_pattern_ctor_params
+
+
+
 def test_1_of_CBEDPattern():
     cbed_pattern = fakecbed.discretized.CBEDPattern()
 
@@ -673,6 +701,112 @@ def test_9_of_CBEDPattern():
 
     cbed_pattern_signal = cbed_pattern.get_signal(deep_copy=False)
     
+    return None
+
+
+
+def test_1_of_CroppedCBEDPattern():
+    cropped_cbed_pattern = fakecbed.discretized.CroppedCBEDPattern()
+
+    cropped_cbed_pattern.validation_and_conversion_funcs
+    cropped_cbed_pattern.pre_serialization_funcs
+    cropped_cbed_pattern.de_pre_serialization_funcs
+
+    cropped_cbed_pattern.num_disks
+    cropped_cbed_pattern.device
+
+    kwargs = {"serializable_rep": cropped_cbed_pattern.pre_serialize()}
+    fakecbed.discretized.CroppedCBEDPattern.de_pre_serialize(**kwargs)
+
+    cropped_cbed_pattern_ctor_params = \
+        generate_cropped_cbed_pattern_ctor_params()
+
+    new_core_attr_subset_candidate = cropped_cbed_pattern_ctor_params
+    cropped_cbed_pattern.update(new_core_attr_subset_candidate)
+
+    kwargs = {"serializable_rep": cropped_cbed_pattern.pre_serialize()}
+    fakecbed.discretized.CroppedCBEDPattern.de_pre_serialize(**kwargs)
+
+    kwargs = cropped_cbed_pattern_ctor_params.copy()
+    kwargs_keys = tuple(kwargs.keys())
+
+    key_1 = kwargs_keys[-1]
+    for key_2 in kwargs_keys:
+        if key_1 != "skip_validation_and_conversion":
+            kwargs[key_1] = cropped_cbed_pattern_ctor_params[key_1]
+        if key_2 != "skip_validation_and_conversion":
+            kwargs[key_2] = slice(None)
+            with pytest.raises(TypeError) as err_info:
+                cbed_pattern = fakecbed.discretized.CroppedCBEDPattern(**kwargs)
+        key_1 = key_2
+
+    return None
+
+
+
+def test_2_of_CroppedCBEDPattern():
+    cropped_cbed_pattern = generate_cropped_cbed_pattern()
+
+    attr_name_subset = \
+        ("principal_disk_boundary_pts_in_uncropped_image_fractional_coords",
+         "principal_disk_bounding_box_in_uncropped_image_fractional_coords",
+         "principal_disk_boundary_pts_in_cropped_image_fractional_coords",
+         "principal_disk_bounding_box_in_cropped_image_fractional_coords",
+         "disk_supports",
+         "disk_clipping_registry",
+         "disk_absence_registry",
+         "signal",
+         "image",
+         "illumination_support",
+         "disk_overlap_map",
+         "principal_disk_is_clipped",
+         "principal_disk_is_absent",
+         "image_has_been_overridden")
+
+    for iteration_idx in range(2):
+        for attr_name in attr_name_subset:
+            attr = getattr(cropped_cbed_pattern, attr_name)
+
+    return None
+
+
+
+def test_3_of_CroppedCBEDPattern():
+    cropped_cbed_pattern = generate_cropped_cbed_pattern()
+
+    new_core_attr_subset_candidate = {"principal_disk_idx": 1000}
+    cropped_cbed_pattern.update(new_core_attr_subset_candidate)
+
+    attr_name_subset = \
+        ("principal_disk_boundary_pts_in_uncropped_image_fractional_coords",
+         "principal_disk_bounding_box_in_uncropped_image_fractional_coords",
+         "principal_disk_boundary_pts_in_cropped_image_fractional_coords",
+         "principal_disk_bounding_box_in_cropped_image_fractional_coords",
+         "principal_disk_is_clipped",
+         "principal_disk_is_absent")
+
+    for attr_name in attr_name_subset:
+        attr = getattr(cropped_cbed_pattern, attr_name)
+
+    return None
+
+
+
+def test_4_of_CroppedCBEDPattern():
+    attr_name_subset = \
+        ("disk_clipping_registry",
+         "disk_absence_registry",
+         "principal_disk_is_clipped",
+         "principal_disk_is_absent")
+
+    for iteration_idx in range(2):
+        for attr_name in attr_name_subset:
+            cropped_cbed_pattern = generate_cropped_cbed_pattern()
+            attr = getattr(cropped_cbed_pattern, attr_name)
+
+            cropped_cbed_pattern = fakecbed.discretized.CroppedCBEDPattern()
+            attr = getattr(cropped_cbed_pattern, attr_name)
+
     return None
 
 
