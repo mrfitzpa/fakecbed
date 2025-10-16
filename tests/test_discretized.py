@@ -761,6 +761,7 @@ def test_2_of_CroppedCBEDPattern():
          "disk_overlap_map",
          "principal_disk_is_clipped",
          "principal_disk_is_absent",
+         "principal_disk_is_overlapping",
          "image_has_been_overridden")
 
     for iteration_idx in range(2):
@@ -783,7 +784,9 @@ def test_3_of_CroppedCBEDPattern():
          "principal_disk_boundary_pts_in_cropped_image_fractional_coords",
          "principal_disk_bounding_box_in_cropped_image_fractional_coords",
          "principal_disk_is_clipped",
-         "principal_disk_is_absent")
+         "principal_disk_is_absent",
+         "disk_overlap_map",
+         "principal_disk_is_overlapping")
 
     for attr_name in attr_name_subset:
         attr = getattr(cropped_cbed_pattern, attr_name)
@@ -794,10 +797,12 @@ def test_3_of_CroppedCBEDPattern():
 
 def test_4_of_CroppedCBEDPattern():
     attr_name_subset = \
-        ("disk_clipping_registry",
+        ("disk_overlap_map",
+         "disk_clipping_registry",
          "disk_absence_registry",
          "principal_disk_is_clipped",
-         "principal_disk_is_absent")
+         "principal_disk_is_absent",
+         "principal_disk_is_overlapping")
 
     for iteration_idx in range(2):
         for attr_name in attr_name_subset:
