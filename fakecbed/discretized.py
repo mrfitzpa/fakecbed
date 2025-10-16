@@ -2975,6 +2975,7 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
                             "_principal_disk_is_clipped",
                             "_principal_disk_is_absent",
                             "_disk_overlap_map",
+                            "_principal_disk_is_overlapping",
                             "_principal_disk_analysis_results",
                             "_principal_disk_bounding_box"
                             "_in_uncropped_image_fractional_coords",
@@ -4505,6 +4506,191 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
 
 
+    def get_disk_overlap_map(self, deep_copy=_default_deep_copy):
+        r"""Return the image of the disk overlap map of the cropped fake CBED 
+        pattern.
+
+        Parameters
+        ----------
+        deep_copy : `bool`, optional
+            Let ``disk_overlap_map`` denote the attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_overlap_map`.
+
+            If ``deep_copy`` is set to ``True``, then a deep copy of
+            ``disk_overlap_map`` is returned.  Otherwise, a reference to
+            ``disk_overlap_map`` is returned.
+
+        Returns
+        -------
+        disk_overlap_map : `torch.Tensor` (`int`, ndim=2)
+            The attribute
+            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_overlap_map`.
+
+        """
+        params = {"deep_copy": deep_copy}
+        deep_copy = _check_and_convert_deep_copy(params)
+
+        if self._disk_overlap_map is None:
+            method_name = "_calc_disk_overlap_map"
+            method_alias = getattr(self, method_name)
+            self._disk_overlap_map = method_alias()
+
+        disk_overlap_map = (self._disk_overlap_map.detach().clone()
+                            if (deep_copy == True)
+                            else self._disk_overlap_map)
+
+        return disk_overlap_map
+
+
+
+    def _calc_disk_overlap_map(self):
+        uncropped_cbed_pattern_disk_overlap_map = \
+            self._cbed_pattern.get_disk_overlap_map(deep_copy=False)
+        uncropped_cbed_pattern_disk_overlap_map = \
+            uncropped_cbed_pattern_disk_overlap_map.cpu().detach().clone()
+
+        signal_to_crop = \
+            self._generate_uncropped_blank_signal()
+        signal_to_crop.data[2] = \
+            uncropped_cbed_pattern_disk_overlap_map.numpy(force=True)
+
+        optional_params = self._generate_optional_cropping_params()
+
+        kwargs = {"input_signal": signal_to_crop,
+                  "optional_params": optional_params}
+        cropped_signal = empix.crop(**kwargs)
+
+        N_W_h, N_W_v = self._cropping_window_dims_in_pixels
+        L, R, B, T = self._mask_frame  # Mask frame of cropped pattern.
+
+        disk_overlap_map = cropped_signal.data[2]
+        disk_overlap_map_dtype = uncropped_cbed_pattern_disk_overlap_map.dtype
+        disk_overlap_map = torch.from_numpy(disk_overlap_map)
+        disk_overlap_map = disk_overlap_map.to(device=self._device,
+                                               dtype=disk_overlap_map_dtype)
+        disk_overlap_map[:T, :] = 0
+        disk_overlap_map[max(N_W_v-B, 0):, :] = 0
+        disk_overlap_map[:, :L] = 0
+        disk_overlap_map[:, max(N_W_h-R, 0):] = 0
+    
+        return disk_overlap_map
+
+
+
+    @property
+    def disk_overlap_map(self):
+        r"""`torch.Tensor`: The image of the disk overlap map of the cropped 
+        fake CBED pattern.
+
+        See the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal` for additional
+        context.
+
+        Let ``signal``, ``device``, and ``core_attrs`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.device`, and
+        :attr:`~fancytypes.Checkable.core_attrs` respectively.
+
+        ``disk_overlap_map`` is calculated effectively by:
+
+        .. code-block:: python
+
+           N_W_h, N_W_v = core_attrs["cropping_window_dims_in_pixels"]
+           L, R, B, T = core_attrs["mask_frame"]
+
+           disk_overlap_map = signal.data[2]
+           disk_overlap_map = torch.from_numpy(disk_overlap_map)
+           disk_overlap_map = disk_overlap_map.to(device=device, dtype=int)
+           disk_overlap_map[:T, :] = 0
+           disk_overlap_map[max(N_W_v-B, 0):, :] = 0
+           disk_overlap_map[:, :L] = 0
+           disk_overlap_map[:, max(N_W_h-R, 0):] = 0
+
+        Note that ``disk_overlap_map`` should be considered **read-only**.
+
+        """
+        result = self.get_disk_overlap_map(deep_copy=True)
+
+        return result
+
+
+
+    @property
+    def principal_disk_is_overlapping(self):
+        r"""`bool`: Equals ``True`` if the "principal" CBED disk exists and is 
+        overlapping with another CBED disk in the image of the cropped fake CBED
+        pattern.
+
+        See the summary documentation for the class
+        :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context,
+        as well as the documentation for the attribute
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_overlap_map`.
+
+        Let ``core_attrs``, ``num_disks``, ``disk_supports``, and
+        ``disk_overlap_map`` denote the attributes
+        :attr:`~fancytypes.Checkable.core_attrs`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.num_disks`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_supports`, and
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_overlap_map`
+        respectively.
+
+        ``principal_disk_is_overlapping`` is calculated effectively by:
+
+        .. code-block:: python
+
+           principal_disk_idx = core_attrs["principal_disk_idx"]
+
+           principal_disk_support = (disk_supports[principal_disk_idx]
+                                     if (principal_disk_idx < num_disks)
+                                     else torch.zeros_like(disk_overlap_map))
+
+           principal_disk_is_overlapping = \
+               torch.any(disk_overlap_map*principal_disk_support > 1.5).item()
+
+        Note that ``principal_disk_is_overlapping`` should be considered
+        **read-only**.
+
+        """
+        if self._principal_disk_is_overlapping is None:
+            method_name = ("_calc_principal_disk_is_overlapping"
+                           "_and_cache_select_intermediates")
+            method_alias = getattr(self, method_name)
+            self._principal_disk_is_overlapping = method_alias()
+
+        result = self._principal_disk_is_overlapping
+        
+        return result
+
+
+    
+    def _calc_principal_disk_is_overlapping_and_cache_select_intermediates(
+            self):
+        principal_disk_idx = self._principal_disk_idx
+        num_disks = self._num_disks
+
+        if self._disk_supports is None:
+            method_name = "_calc_disk_supports"
+            method_alias = getattr(self, method_name)
+            self._disk_supports = method_alias()
+        disk_supports = self._disk_supports
+
+        if self._disk_overlap_map is None:
+            method_name = "_calc_disk_overlap_map"
+            method_alias = getattr(self, method_name)
+            self._disk_overlap_map = method_alias()
+        disk_overlap_map = self._disk_overlap_map
+
+        principal_disk_support = (disk_supports[principal_disk_idx]
+                                  if (principal_disk_idx < num_disks)
+                                  else torch.zeros_like(disk_overlap_map))
+
+        principal_disk_is_overlapping = \
+            torch.any(disk_overlap_map*principal_disk_support > 1.5).item()
+
+        return principal_disk_is_overlapping
+
+
+
     def get_signal(self, deep_copy=_default_deep_copy):
         r"""Return the hyperspy signal representation of the cropped fake CBED 
         pattern.
@@ -4576,11 +4762,11 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
             self._generate_cropped_blank_signal().axes_manager
         
         signal.axes_manager[0].name = \
-            r"cropped fake CBED pattern attribute"
+            "cropped fake CBED pattern attribute"
         signal.axes_manager[1].name = \
-            r"fractional horizontal coordinate of uncropped fake CBED pattern"
+            "fractional horizontal coordinate of uncropped fake CBED pattern"
         signal.axes_manager[2].name = \
-            r"fractional vertical coordinate of uncropped fake CBED pattern"
+            "fractional vertical coordinate of uncropped fake CBED pattern"
 
         return signal
 
@@ -4597,7 +4783,8 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
                             "_disk_clipping_registry",
                             "_disk_absence_registry",
                             "_principal_disk_is_clipped",
-                            "_principal_disk_is_absent")
+                            "_principal_disk_is_absent",
+                            "_principal_disk_is_overlapping")
         for attr_name in attr_name_subset:
             attr = getattr(self, attr_name)
             if attr is None:
@@ -4660,12 +4847,19 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
         :class:`fakecbed.discretized.CBEDPattern` and
         :class:`fakecbed.discretized.CroppedCBEDPattern` for additional context.
 
-        Let
+        Let ``disk_clipping_registry``, ``disk_absence_registry``,
+        ``principal_disk_is_clipped``, ``principal_disk_is_absent``,
+        ``principal_disk_is_overlapping``,
         ``principal_disk_bounding_box_in_uncropped_image_fractional_coords``,
         ``principal_disk_bounding_box_in_cropped_image_fractional_coords``,
         ``principal_disk_boundary_pts_in_uncropped_image_fractional_coords``,
         ``principal_disk_boundary_pts_in_cropped_image_fractional_coords``, and
         ``core_attrs`` denote the attributes
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_clipping_registry`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_absence_registry`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_is_clipped`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_is_absent`,
+        :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_is_overlapping`,
         :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_uncropped_image_fractional_coords`,
         :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_cropped_image_fractional_coords`,
         :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_boundary_pts_in_uncropped_image_fractional_coords`,
@@ -4727,45 +4921,95 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
            kwargs["value"] = pre_serialize()
            signal.metadata.set_item(**kwargs)
 
-           tensor = \
+           def _convert_attr_to_metadata_item(attr):
+               if isinstance(attr, (tuple, bool)):
+                   metadata_item = \
+                       attr
+               else:
+                   if len(attr.shape) == 1:
+                       metadata_item = \
+                           tuple(elem
+                                 for elem
+                                 in attr.cpu().detach().clone().tolist())
+                   else:
+                       metadata_item = \
+                           tuple(tuple(pt)
+                                 for pt
+                                 in attr.cpu().detach().clone().tolist())
+
+               return metadata_item
+
+           attr = disk_clipping_registry
+           kwargs["item_path"] = "FakeCBED.disk_clipping_registry"
+           kwargs["value"] = _convert_attr_to_metadata_item(attr)
+           signal.metadata.set_item(**kwargs)
+
+           attr = disk_absence_registry
+           kwargs["item_path"] = "FakeCBED.disk_absence_registry"
+           kwargs["value"] = _convert_attr_to_metadata_item(attr)
+           signal.metadata.set_item(**kwargs)
+
+           attr = principal_disk_is_clipped
+           kwargs["item_path"] = "FakeCBED.principal_disk_is_clipped"
+           kwargs["value"] = _convert_attr_to_metadata_item(attr)
+           signal.metadata.set_item(**kwargs)
+
+           attr = principal_disk_is_absent
+           kwargs["item_path"] = "FakeCBED.principal_disk_is_absent"
+           kwargs["value"] = _convert_attr_to_metadata_item(attr)
+           signal.metadata.set_item(**kwargs)
+
+           attr = principal_disk_is_overlapping
+           kwargs["item_path"] = "FakeCBED.principal_disk_is_overlapping"
+           kwargs["value"] = _convert_attr_to_metadata_item(attr)
+           signal.metadata.set_item(**kwargs)
+
+           attr = \
                principal_disk_bounding_box_in_uncropped_image_fractional_coords
            kwargs["item_path"] = \
                ("FakeCBED.principal_disk_bounding_box"
                 "_in_uncropped_image_fractional_coords")
            kwargs["value"] = \
-               tuple(tensor.cpu().detach().clone().tolist())
+               _convert_attr_to_metadata_item(attr)
            _ = \
                signal.metadata.set_item(**kwargs)
 
-           tensor = \
+           attr = \
                principal_disk_bounding_box_in_cropped_image_fractional_coords
            kwargs["item_path"] = \
                ("FakeCBED.principal_disk_bounding_box"
                 "_in_cropped_image_fractional_coords")
            kwargs["value"] = \
-               tuple(tensor.cpu().detach().clone().tolist())
+               _convert_attr_to_metadata_item(attr)
            _ = \
                signal.metadata.set_item(**kwargs)
 
-           tensor = \
+           attr = \
                principal_disk_boundary_pts_in_uncropped_image_fractional_coords
            kwargs["item_path"] = \
                ("FakeCBED.principal_disk_boundary_pts"
                 "_in_uncropped_image_fractional_coords")
            kwargs["value"] = \
-               tuple(tensor.cpu().detach().clone().tolist())
+               _convert_attr_to_metadata_item(attr)
            _ = \
                signal.metadata.set_item(**kwargs)
 
-           tensor = \
+           attr = \
                principal_disk_boundary_pts_in_cropped_image_fractional_coords
            kwargs["item_path"] = \
                ("FakeCBED.principal_disk_boundary_pts"
                 "_in_cropped_image_fractional_coords")
            kwargs["value"] = \
-               tuple(tensor.cpu().detach().clone().tolist())
+               _convert_attr_to_metadata_item(attr)
            _ = \
                signal.metadata.set_item(**kwargs)
+
+           signal.axes_manager[0].name = \
+               "cropped fake CBED pattern attribute"
+           signal.axes_manager[1].name = \
+               "fractional horizontal coordinate of uncropped fake CBED pattern"
+           signal.axes_manager[2].name = \
+               "fractional vertical coordinate of uncropped fake CBED pattern"
 
         Note that ``signal`` should be considered **read-only**.
 
@@ -5009,115 +5253,6 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
         """
         result = self.get_illumination_support(deep_copy=True)
-
-        return result
-
-
-
-    def get_disk_overlap_map(self, deep_copy=_default_deep_copy):
-        r"""Return the image of the disk overlap map of the cropped fake CBED 
-        pattern.
-
-        Parameters
-        ----------
-        deep_copy : `bool`, optional
-            Let ``disk_overlap_map`` denote the attribute
-            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_overlap_map`.
-
-            If ``deep_copy`` is set to ``True``, then a deep copy of
-            ``disk_overlap_map`` is returned.  Otherwise, a reference to
-            ``disk_overlap_map`` is returned.
-
-        Returns
-        -------
-        disk_overlap_map : `torch.Tensor` (`int`, ndim=2)
-            The attribute
-            :attr:`fakecbed.discretized.CroppedCBEDPattern.disk_overlap_map`.
-
-        """
-        params = {"deep_copy": deep_copy}
-        deep_copy = _check_and_convert_deep_copy(params)
-
-        if self._disk_overlap_map is None:
-            method_name = ("_calc_disk_overlap_map")
-            method_alias = getattr(self, method_name)
-            self._disk_overlap_map = method_alias()
-
-        disk_overlap_map = (self._disk_overlap_map.detach().clone()
-                            if (deep_copy == True)
-                            else self._disk_overlap_map)
-
-        return disk_overlap_map
-
-
-
-    def _calc_disk_overlap_map(self):
-        uncropped_cbed_pattern_disk_overlap_map = \
-            self._cbed_pattern.get_disk_overlap_map(deep_copy=False)
-        uncropped_cbed_pattern_disk_overlap_map = \
-            uncropped_cbed_pattern_disk_overlap_map.cpu().detach().clone()
-
-        signal_to_crop = \
-            self._generate_uncropped_blank_signal()
-        signal_to_crop.data[2] = \
-            uncropped_cbed_pattern_disk_overlap_map.numpy(force=True)
-
-        optional_params = self._generate_optional_cropping_params()
-
-        kwargs = {"input_signal": signal_to_crop,
-                  "optional_params": optional_params}
-        cropped_signal = empix.crop(**kwargs)
-
-        N_W_h, N_W_v = self._cropping_window_dims_in_pixels
-        L, R, B, T = self._mask_frame  # Mask frame of cropped pattern.
-
-        disk_overlap_map = cropped_signal.data[2]
-        disk_overlap_map_dtype = uncropped_cbed_pattern_disk_overlap_map.dtype
-        disk_overlap_map = torch.from_numpy(disk_overlap_map)
-        disk_overlap_map = disk_overlap_map.to(device=self._device,
-                                               dtype=disk_overlap_map_dtype)
-        disk_overlap_map[:T, :] = 0
-        disk_overlap_map[max(N_W_v-B, 0):, :] = 0
-        disk_overlap_map[:, :L] = 0
-        disk_overlap_map[:, max(N_W_h-R, 0):] = 0
-    
-        return disk_overlap_map
-
-
-
-    @property
-    def disk_overlap_map(self):
-        r"""`torch.Tensor`: The image of the disk overlap map of the cropped 
-        fake CBED pattern.
-
-        See the documentation for the attribute
-        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal` for additional
-        context.
-
-        Let ``signal``, ``device``, and ``core_attrs`` denote the attributes
-        :attr:`fakecbed.discretized.CroppedCBEDPattern.signal`,
-        :attr:`fakecbed.discretized.CroppedCBEDPattern.device`, and
-        :attr:`~fancytypes.Checkable.core_attrs` respectively.
-
-        ``disk_overlap_map`` is calculated effectively by:
-
-        .. code-block:: python
-
-           N_W_h, N_W_v = core_attrs["cropping_window_dims_in_pixels"]
-           L, R, B, T = core_attrs["mask_frame"]
-
-           disk_overlap_map = signal.data[2]
-           disk_overlap_map = torch.from_numpy(disk_overlap_map)
-           disk_overlap_map = disk_overlap_map.to(device=device, dtype=int)
-           disk_overlap_map[:T, :] = 0
-           disk_overlap_map[max(N_W_v-B, 0):, :] = 0
-           disk_overlap_map[:, :L] = 0
-           disk_overlap_map[:, max(N_W_h-R, 0):] = 0
-
-        Note that ``disk_overlap_map`` should be considered **read-only**.
-
-        """
-        result = self.get_disk_overlap_map(deep_copy=True)
 
         return result
 
