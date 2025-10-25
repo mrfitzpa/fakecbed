@@ -100,7 +100,7 @@ cmd_output_as_bytes = subprocess.check_output("git tag", shell=True)
 cmd_output = cmd_output_as_bytes.decode("utf-8")
 tags = cmd_output.rstrip("\n").split("\n")
 
-pattern = r"v[0-9]+\.[0.9]+\.[0-9]+"
+pattern = r"v[0-9]+\.[0-9]+\.[0-9]+"
 release_tags = tuple(tag for tag in tags if re.fullmatch(pattern, tag))
 
 for tag in release_tags:
