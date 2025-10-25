@@ -13,7 +13,6 @@ pages/
 .python-version
 fakecbed/version.py
 tests/coverage.json
-run_tests.sh
 
 # Ignore generated output coverage files.
 tests/coverage*
