@@ -115,9 +115,9 @@ for major in sorted(version_subset.keys()):
     for minor in sorted(version_subset[major].keys()):
         patch = version_subset[major][minor]
         version = "{}.{}.{}".format(major, minor, patch)
+        tag = "v"+version
         major_minor = "{}.{}".format(major, minor)
         language = "en"
-        print(major_minor, version)
         _build_doc(version, language, tag)
         _mvdir("./_build/html/", "./pages/"+major_minor+"/"+language+"/")
 
