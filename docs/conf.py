@@ -198,7 +198,10 @@ if build_all_docs is not None:
     tag_set = cmd_output.rstrip("\n").split("\n")
 
     pattern = r"v[0-9]+\.[0-9]+\.[0-9]+"
-    release_tag_set = tuple(tag for tag in tags if re.fullmatch(pattern, tag))
+    release_tag_set = tuple(tag
+                            for tag
+                            in tag_set
+                            if re.fullmatch(pattern, tag))
 
     version_subset = dict()
     for tag in release_tag_set:
