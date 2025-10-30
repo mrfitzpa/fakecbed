@@ -142,6 +142,12 @@ class Model(fakecbed.shapes.BaseShape):
     coordinates of the undistorted intensity pattern of the TDS model
     respectively.
 
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
+
     Parameters
     ----------
     peaks : `array_like` (`fakecbed.shapes.Peak`, ndim=1), optional

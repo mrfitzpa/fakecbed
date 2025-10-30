@@ -635,14 +635,17 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
     Let :math:`u_{x}` and :math:`u_{y}` be the fractional horizontal and
     vertical coordinates, respectively, of a point in an undistorted image,
-    where :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)` is the bottom left
-    corner of the image. Secondly, let :math:`q_{x}` and :math:`q_{y}` be the
+    where :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of the
+    undistorted image. Secondly, let :math:`q_{x}` and :math:`q_{y}` be the
     fractional horizontal and vertical coordinates, respectively, of a point in
     a distorted image, where :math:`\left(q_{x},q_{y}\right)=\left(0,0\right)`
-    is the bottom left corner of the image. When users specify the distortion
-    model, represented by an instance of the class
-    :class:`distoptica.DistortionModel`, they also specify a coordinate
-    transformation, :math:`\left(T_{⌑;x}\left(u_{x},u_{y}\right),
+    :math:`\left[\left(q_{x},q_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of the
+    distorted image.. When users specify the distortion model, represented by an
+    instance of the class :class:`distoptica.DistortionModel`, they also specify
+    a coordinate transformation, :math:`\left(T_{⌑;x}\left(u_{x},u_{y}\right),
     T_{⌑;y}\left(u_{x},u_{y}\right)\right)`, which maps a given coordinate pair
     :math:`\left(u_{x},u_{y}\right)` to a corresponding coordinate pair
     :math:`\left(q_{x},q_{y}\right)`, and implicitly a right-inverse to said

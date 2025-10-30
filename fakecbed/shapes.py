@@ -36,12 +36,16 @@ nonnegative.
 
 Let :math:`u_{x}` and :math:`u_{y}` be the fractional horizontal and vertical
 coordinates, respectively, of a point in an undistorted image, where
-:math:`\left(u_{x},u_{y}\right)=\left(0,0\right)` is the bottom left corner of
-the image. Secondly, let :math:`q_{x}` and :math:`q_{y}` be the fractional
+:math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+:math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower left
+[upper right] corner of the lower left [upper right] pixel of the undistorted
+image. Secondly, let :math:`q_{x}` and :math:`q_{y}` be the fractional
 horizontal and vertical coordinates, respectively, of a point in a distorted
-image, where :math:`\left(q_{x},q_{y}\right)=\left(0,0\right)` is the bottom
-left corner of the image. When users specify a distortion model, represented by
-an :obj:`distoptica.DistortionModel` object, they also specify a coordinate
+image, where :math:`\left(q_{x},q_{y}\right)=\left(0,0\right)`
+:math:`\left[\left(q_{x},q_{y}\right)=\left(1,1\right)\right]` is the lower left
+[upper right] corner of the lower left [upper right] pixel of the distorted
+image. When users specify a distortion model, represented by an
+:obj:`distoptica.DistortionModel` object, they also specify a coordinate
 transformation which maps a given coordinate pair
 :math:`\left(u_{x},u_{y}\right)` to a corresponding coordinate pair
 :math:`\left(q_{x},q_{y}\right)`, and implicitly a right-inverse to said
@@ -277,10 +281,11 @@ class BaseShape(fancytypes.PreSerializableAndUpdatable):
         r"""Evaluate the intensity pattern of the undistorted shape.
 
         Let :math:`u_{x}` and :math:`u_{y}` be the fractional horizontal and
-        vertical coordinates, respectively, of a point in an undistorted image.
-        We adopt the convention where the fractional coordinate pair
-        :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)` is the bottom left
-        corner of an image.
+        vertical coordinates, respectively, of a point in an undistorted image,
+        where :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+        :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the
+        lower left [upper right] corner of the lower left [upper right] pixel of
+        the undistorted image.
 
         Parameters
         ----------
@@ -459,7 +464,13 @@ class Circle(BaseShape):
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
     coordinates of the undistorted intensity pattern of the circle respectively,
-    and :math:`\Theta\left(\cdots\right)` is the Heaviside step function.
+    and :math:`\Theta\left(\cdots\right)` is the Heaviside step function. 
+
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
 
     Parameters
     ----------
@@ -691,6 +702,12 @@ class Ellipse(BaseShape):
         u_{x;c;\text{E}}\right]\sin\left(\theta_{\text{E}}\right)+\left[u_{y}-
         u_{y;c;\text{E}}\right]\cos\left(\theta_{\text{E}}\right)\right\}^{2}.
         :label: ellipse_support_arg__1
+
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
 
     Parameters
     ----------
@@ -986,6 +1003,12 @@ class Peak(BaseShape):
         :label: W_alpha_peak__1
 
     with :math:`\Theta\left(\cdots\right)` being the Heaviside step function.
+
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
 
     Parameters
     ----------
@@ -1400,6 +1423,12 @@ class Band(BaseShape):
         \end{cases}
         :label: c_2_of_band__1
 
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
+
     Parameters
     ----------
     end_pt_1 : `array_like` (`float`, shape=(``2``,)), optional
@@ -1711,6 +1740,12 @@ class PlaneWave(BaseShape):
         \sin\left(\theta_{\text{PW}}\right).
         :label: k_y_of_plane_wave__1
 
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
+
     Parameters
     ----------
     amplitude : `float`, optional        
@@ -1959,6 +1994,12 @@ class Arc(BaseShape):
         -u_{y;c;\text{A}}}{u_{x}-u_{x;c;\text{A}}}\right)
         -\theta_{\text{A}}\right\} \mod 2\pi.
         :label: u_theta_UA__1
+
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
 
     Parameters
     ----------
@@ -2258,6 +2299,12 @@ class GenericBlob(BaseShape):
     .. math ::
         D_{\text{GB};0}>\sum_{n=1}^{N_{\text{GB}}}D_{\text{GB};n}.
         :label: D_UGB_n__2
+
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
 
     Parameters
     ----------
@@ -2593,6 +2640,12 @@ class Orbital(BaseShape):
     :math:`Y_{l_{\text{O}}}^{m_{\text{O}}}\left(u_{\theta;\text{O}},
     u_{\phi;\text{O}}\right)` is the spherical harmonic function of degree
     :math:`l_{\text{O}}` and order :math:`m_{\text{O}}`.
+
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
 
     Parameters
     ----------
@@ -3037,6 +3090,12 @@ class Lune(BaseShape):
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
     coordinates of the undistorted intensity pattern of the lune respectively.
 
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
+
     Parameters
     ----------
     bg_ellipse : :class:`fakecbed.shapes.Circle` | :class:`fakecbed.shapes.Ellipse` | `None`, optional
@@ -3292,6 +3351,12 @@ class NonuniformBoundedShape(BaseShape):
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
     coordinates of the undistorted intensity pattern of the nonuniform bounded
     shape respectively.
+
+    By fractional coordinates, we mean that
+    :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
+    :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
+    left [upper right] corner of the lower left [upper right] pixel of an image
+    of the undistorted intensity pattern.
 
     Parameters
     ----------
