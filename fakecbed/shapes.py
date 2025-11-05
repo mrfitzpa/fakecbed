@@ -457,14 +457,17 @@ class Circle(BaseShape):
 
     .. math ::
         \mathcal{I}_{\text{C}}\left(u_{x},u_{y}\right)=
-        A_{\text{C}}\Theta\left(R_{\text{C}}
-        -\sqrt{\left(u_{x}-u_{x;c;\text{C}}\right)^{2}
-        +\left(u_{y}-u_{y;c;\text{C}}\right)^{2}}\right),
+        A_{\text{C}}\Theta\left(R_{\text{C}}-u_{r;\text{C}}\right),
         :label: intensity_pattern_of_circle__1
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
-    coordinates of the undistorted intensity pattern of the circle respectively,
-    and :math:`\Theta\left(\cdots\right)` is the Heaviside step function. 
+    coordinates of the undistorted intensity pattern of the circle respectively;
+    :math:`\Theta\left(\cdots\right)` is the Heaviside step function; and
+
+    .. math ::
+        u_{r;\text{C}}=\sqrt{\left(u_{x}-u_{x;c;\text{C}}\right)^{2}
+        +\left(u_{y}-u_{y;c;\text{C}}\right)^{2}};
+        :label: u_r_C__1
 
     By fractional coordinates, we mean that
     :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
@@ -578,8 +581,10 @@ class Circle(BaseShape):
         delta_u_y = u_y-u_y_c
 
         u_r = torch.sqrt(delta_u_x*delta_u_x + delta_u_y*delta_u_y)
+
+        one = torch.tensor(1.0, device=u_r.device)
         
-        result = A * (u_r <= R)
+        result = A * torch.heaviside(R-u_r, one)
 
         return result
 
@@ -681,33 +686,47 @@ class Ellipse(BaseShape):
 
     .. math ::
         \mathcal{I}_{\text{E}}\left(u_{x},u_{y}\right)=
-        A_{\text{E}}\Theta\left(\Theta_{\arg;\text{E}}\left(u_{x},
-        u_{y}\right)\right),
+        A_{\text{E}}\Theta\left(
+        R_{\text{E}}\left(u_{\theta;\text{UA}}\right)-u_{r;\text{E}}\right),
         :label: intensity_pattern_of_ellipse__1
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
     coordinates of the undistorted intensity pattern of the ellipse
-    respectively, :math:`\Theta\left(\cdots\right)` is the Heaviside step
-    function, and
+    respectively; :math:`\Theta\left(\cdots\right)` is the Heaviside step
+    function;
 
     .. math ::
-        &\Theta_{\arg;\text{E}}\left(u_{x},u_{y}\right)\\&\quad=
-        \left\{ 1-e_{\text{E}}^{2}\right\} a_{\text{E}}^{2}\\
-        &\quad\quad-\left\{ 1-e_{\text{E}}^{2}\right\} 
-        \left\{ \left[u_{x}-u_{x;c;\text{E}}\right]
-        \cos\left(\theta_{\text{E}}\right)
-        -\left[u_{y}-u_{y;c;\text{E}}\right]
-        \sin\left(\theta_{\text{E}}\right)\right\} ^{2}\\
-        &\quad\quad-\left\{ \left[u_{x}-
-        u_{x;c;\text{E}}\right]\sin\left(\theta_{\text{E}}\right)+\left[u_{y}-
-        u_{y;c;\text{E}}\right]\cos\left(\theta_{\text{E}}\right)\right\}^{2}.
-        :label: ellipse_support_arg__1
+        u_{r;\text{E}}=\sqrt{\left(u_{x}-u_{x;c;\text{E}}\right)^{2}
+        +\left(u_{y}-u_{y;c;\text{E}}\right)^{2}};
+        :label: u_r_E__1
+
+    .. math ::
+        u_{\theta;\text{E}}=
+        \tan^{-1}\left(\frac{u_{y}
+        -u_{y;c;\text{E}}}{u_{x}-u_{x;c;\text{E}}}\right);
+        :label: u_theta_E__1
+
+    and
+
+    .. math ::
+        R_{\text{E}}\left(u_{\theta;\text{E}}\right)=a_{\text{E}}
+        \sqrt{\frac{1-e_{\text{E}}^{2}}{1
+        -\left\{ e_{\text{E}}\cos\left(u_{\theta;\text{E}}
+        +\theta_{\text{E}}\right)\right\} ^{2}}}.
+        :label: R_E__1
 
     By fractional coordinates, we mean that
     :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
     :math:`\left[\left(u_{x},u_{y}\right)=\left(1,1\right)\right]` is the lower
     left [upper right] corner of the lower left [upper right] pixel of an image
     of the undistorted intensity pattern.
+
+    Note that if :math:`\theta_{\text{E}}=0`, then the longest chord of the
+    ellipse is horizontal. Let us refer to this ellipse with
+    :math:`\theta_{\text{E}}=0` as the "reference shape". If
+    :math:`\theta_{\text{E}} \neq 0`, then the ellipse is equal to the reference
+    shape after rotating the latter shape clockwise by :math:`\theta_{\text{E}}`
+    about its center.
 
     Parameters
     ----------
@@ -819,42 +838,33 @@ class Ellipse(BaseShape):
 
 
     def _eval(self, u_x, u_y):
-        A = self._intra_shape_val
-        support_arg = self._calc_support_arg(u_x, u_y)
-        one = torch.tensor(1.0, device=support_arg.device)
-        result = A * torch.heaviside(support_arg, one)
-
-        return result
-
-
-
-    def _calc_support_arg(self, u_x, u_y):
         u_x_c, u_y_c = self._center
         a = self._semi_major_axis
         e = self._eccentricity
-        theta = torch.tensor(self._rotation_angle, dtype=u_x.dtype)
+        rotation_angle = self._rotation_angle
+        A = self._intra_shape_val
 
         delta_u_x = u_x-u_x_c
         delta_u_y = u_y-u_y_c
 
+        u_r = torch.sqrt(delta_u_x*delta_u_x + delta_u_y*delta_u_y)
+        u_theta = torch.atan2(delta_u_y, delta_u_x) % (2*np.pi)
+
+        theta = torch.tensor(rotation_angle, dtype=u_r.dtype)
+        
+        u_theta_shifted = u_theta + theta
+        cos_u_theta_shifted = torch.cos(u_theta_shifted)
+
         e_sq = e*e
-        a_sq = a*a
-        b_sq = (1-e_sq)*a_sq
 
-        cos_theta = torch.cos(theta)
-        sin_theta = torch.sin(theta)
+        R = a * torch.sqrt((1 - e_sq)
+                           / (1 - e_sq*cos_u_theta_shifted*cos_u_theta_shifted))
 
-        delta_u_x_prime = delta_u_x*cos_theta - delta_u_y*sin_theta
-        delta_u_x_prime_sq = delta_u_x_prime*delta_u_x_prime
+        one = torch.tensor(1.0, device=u_theta.device)
 
-        delta_u_y_prime = delta_u_x*sin_theta + delta_u_y*cos_theta
-        delta_u_y_prime_sq = delta_u_y_prime*delta_u_y_prime
+        result = A * torch.heaviside(R-u_r, one)
 
-        support_arg = (b_sq
-                       - (b_sq/a_sq)*delta_u_x_prime_sq
-                       - delta_u_y_prime_sq)
-
-        return support_arg
+        return result
 
 
 
@@ -962,7 +972,7 @@ class Peak(BaseShape):
         :label: intensity_pattern_of_peak__1
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
-    coordinates of the undistorted intensity pattern of the peak respectively,
+    coordinates of the undistorted intensity pattern of the peak respectively;
 
     .. math ::
         F_{\beta;\text{P}}\left(\omega\right)=\begin{cases}
@@ -1321,7 +1331,7 @@ class Band(BaseShape):
         :label: intensity_pattern_of_band__1
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
-    coordinates of the undistorted intensity pattern of the band respectively,
+    coordinates of the undistorted intensity pattern of the band respectively;
 
     .. math ::
         \Theta\left(\omega\right)=\begin{cases}
@@ -1339,7 +1349,7 @@ class Band(BaseShape):
     .. math ::
         d_{\text{B};1}\left(u_{x},u_{y}\right)=
         \frac{a_{\text{B};1}u_{x}+b_{\text{B};1}u_{y}
-        +c_{\text{B};1}}{\sqrt{a_{\text{B};1}^{2}+b_{\text{B};1}^{2}}};
+        +c_{\text{B};1}}{\sqrt{a_{\text{B};1}^{2}+b_{\text{B};1}^{2}}},
         :label: d_1_of_band__1
 
     with
@@ -1726,11 +1736,11 @@ class PlaneWave(BaseShape):
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
     coordinates of the undistorted intensity pattern of the plane wave
-    respectively,
+    respectively;
 
     .. math ::
         k_{x;\text{PW}}=\frac{2\pi}{\lambda_{\text{PW}}}
-        \cos\left(\theta_{\text{PW}}\right),
+        \cos\left(\theta_{\text{PW}}\right);
         :label: k_x_of_plane_wave__1
 
     and
@@ -1979,12 +1989,12 @@ class Arc(BaseShape):
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
     coordinates of the undistorted intensity pattern of the circular arc
-    respectively, :math:`\Theta\left(\cdots\right)` is the Heaviside step
-    function,
+    respectively; :math:`\Theta\left(\cdots\right)` is the Heaviside step
+    function;
 
     .. math ::
         u_{r;\text{A}}=\sqrt{\left(u_{x}-u_{x;c;\text{A}}\right)^{2}
-        +\left(u_{y}-u_{y;c;\text{A}}\right)^{2}},
+        +\left(u_{y}-u_{y;c;\text{A}}\right)^{2}};
         :label: u_r_UA__1
 
     and
@@ -2264,19 +2274,19 @@ class GenericBlob(BaseShape):
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
     coordinates of the undistorted intensity pattern of the generic blob
-    respectively, :math:`\Theta\left(\cdots\right)` is the Heaviside step
-    function,
+    respectively; :math:`\Theta\left(\cdots\right)` is the Heaviside step
+    function;
 
     .. math ::
         u_{r;\text{GB}}=\sqrt{\left(u_{x}-u_{x;c;\text{GB}}\right)^{2}
         +\left(u_{y}-u_{y;c;\text{GB}}\right)^{2}};
-        :label: u_r_UGB__1
+        :label: u_r_GB__1
 
     .. math ::
         u_{\theta;\text{GB}}=
         \tan^{-1}\left(\frac{u_{y}
         -u_{y;c;\text{GB}}}{u_{x}-u_{x;c;\text{GB}}}\right);
-        :label: u_theta_UGB__1
+        :label: u_theta_GB__1
 
     and
 
@@ -2285,20 +2295,20 @@ class GenericBlob(BaseShape):
         D_{\text{GB};0}\\&\quad\mathop{+}\min\left(1,N_{\text{GB}}\right)
         \sum_{n=1}^{N_{\text{GB}}}D_{\text{GB};n}
         \cos\left(nu_{\theta;\text{GB}}-\phi_{\text{GB};n-1}\right),
-        :label: R_UGB__1
+        :label: R_GB__1
 
     with
 
     .. math ::
         D_{\text{GB};n} \ge 0,
         \quad\forall n\in\left\{ 1,\ldots,N_{\text{GB}}\right\},
-        :label: D_UGB_n__1
+        :label: D_GB_n__1
 
     and
 
     .. math ::
         D_{\text{GB};0}>\sum_{n=1}^{N_{\text{GB}}}D_{\text{GB};n}.
-        :label: D_UGB_n__2
+        :label: D_GB_n__2
 
     By fractional coordinates, we mean that
     :math:`\left(u_{x},u_{y}\right)=\left(0,0\right)`
@@ -2424,11 +2434,11 @@ class GenericBlob(BaseShape):
 
         N = len(phi)
 
-        one = torch.tensor(1.0, device=u_x.device)
-
         R = D[0]*torch.ones_like(u_theta)
         for n in range(1, N+1):
             R += D[n]*torch.cos(n*u_theta - phi[n-1])
+
+        one = torch.tensor(1.0, device=u_r.device)
 
         result = A * torch.heaviside(R-u_r, one)
 
@@ -2602,11 +2612,11 @@ class Orbital(BaseShape):
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
     coordinates of the undistorted intensity pattern of the orbital
-    respectively,
+    respectively;
 
     .. math ::
         u_{r;\text{O}}=\sqrt{\left(u_{x}-u_{x;c;\text{O}}\right)^{2}
-        +\left(u_{y}-u_{y;c;\text{O}}\right)^{2}},
+        +\left(u_{y}-u_{y;c;\text{O}}\right)^{2}};
         :label: u_r_O__1
 
     .. math ::
