@@ -687,7 +687,7 @@ class Ellipse(BaseShape):
     .. math ::
         \mathcal{I}_{\text{E}}\left(u_{x},u_{y}\right)=
         A_{\text{E}}\Theta\left(
-        R_{\text{E}}\left(u_{\theta;\text{UA}}\right)-u_{r;\text{E}}\right),
+        R_{\text{E}}\left(u_{\theta;\text{E}}\right)-u_{r;\text{E}}\right),
         :label: intensity_pattern_of_ellipse__1
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
@@ -2269,7 +2269,7 @@ class GenericBlob(BaseShape):
     .. math ::
         \mathcal{I}_{\text{GB}}\left(u_{x},u_{y}\right)=
         A_{\text{GB}}\Theta\left(
-        R_{\text{GB}}\left(u_{\theta;\text{UA}}\right)-u_{r;\text{GB}}\right),
+        R_{\text{GB}}\left(u_{\theta;\text{GB}}\right)-u_{r;\text{GB}}\right),
         :label: intensity_pattern_of_generic_blob__1
 
     where :math:`u_{x}` and :math:`u_{y}` are fractional horizontal and vertical
