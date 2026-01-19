@@ -873,11 +873,11 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
     4. Calculate
 
     .. math ::
-        \mathring{\mathcal{I}}_{\text{CBED};\wasylozenge;i,j}\leftarrow
-        \mathcal{I}_{\text{TDS}}\left(T_{\Square;x}\left(
+        \mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}\leftarrow
+        \mathcal{I}_{\text{TDS}}\left(T_{\square;x}\left(
         q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right),
-        T_{\Square;y}\left(q_{\mathring{\mathcal{I}};x;j},
+        T_{\square;y}\left(q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right)\right),
         :label: HD_I_CBED__1
 
@@ -1021,10 +1021,10 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         :label: LD_I_DCM__1
 
     .. math ::
-        \Omega_{k;\text{DCR};\wasylozenge}\leftarrow\begin{cases}
+        \Omega_{k;\text{DCR};⌑}\leftarrow\begin{cases}
         \text{True}, & \text{if }\left.\left(\sum_{n,m}
-        \mathcal{I}_{k;\text{DCM};\wasylozenge;n,m}\neq0\right)\right\Vert
-        \left(\sum_{n,m}\mathcal{I}_{k;\text{DS};\wasylozenge;n,m}=0\right),\\
+        \mathcal{I}_{k;\text{DCM};⌑;n,m}\neq0\right)\right\Vert
+        \left(\sum_{n,m}\mathcal{I}_{k;\text{DS};⌑;n,m}=0\right),\\
         \text{False}, & \text{otherwise},
         \end{cases}
         :label: Omega_k_DCR__1
