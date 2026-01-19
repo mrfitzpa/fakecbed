@@ -13,7 +13,7 @@ authors:
 repository-code: 'https://github.com/mrfitzpa/fakecbed'
 url: 'https://mrfitzpa.github.io/fakecbed/'
 abstract: >-
-  `fakecbed` is Python library for generating quickly images that imitate
+  FakeCBED is Python library for generating quickly images that imitate
   convergent beam electron diffraction patterns. 
 keywords:
   - pytorch
