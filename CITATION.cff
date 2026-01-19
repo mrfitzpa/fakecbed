@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: FakeCBED
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Matthew R. C.
+    family-names: Fitzpatrick
+    email: matthew.rc.fitzpatrick@gmail.com
+    affiliation: University of Victoria
+    orcid: 'https://orcid.org/0000-0001-5347-0629'
+repository-code: 'https://github.com/mrfitzpa/fakecbed'
+url: 'https://mrfitzpa.github.io/fakecbed/'
+abstract: >-
+  `fakecbed` is Python library for generating quickly images that imitate
+  convergent beam electron diffraction patterns. 
+keywords:
+  - pytorch
+  - microscopy
+  - diffraction
+  - cbed
+  - gpu
+license: GPL-3.0
+version: 0.5.2
+date-released: '2026-01-18'

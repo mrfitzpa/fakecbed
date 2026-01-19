@@ -21,8 +21,9 @@ tests/.coverage*
 # Ignore .pyc files.
 *.pyc
 
-# Ignore JSON files.
+# Ignore most JSON files.
 *.json
+!.zenodo.json
 
 # Ignore backup files.
 \#*#

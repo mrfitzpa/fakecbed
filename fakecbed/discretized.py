@@ -870,7 +870,18 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         \end{cases}
         :label: LD_I_MF__1
 
-    4. For :math:`0\le k<N_{\text{D}}`, calculate
+    4. Calculate
+
+    .. math ::
+        \mathring{\mathcal{I}}_{\text{CBED};\wasylozenge;i,j}\leftarrow
+        \mathcal{I}_{\text{TDS}}\left(T_{\Square;x}\left(
+        q_{\mathring{\mathcal{I}};x;j},
+        q_{\mathring{\mathcal{I}};y;i}\right),
+        T_{\Square;y}\left(q_{\mathring{\mathcal{I}};x;j},
+        q_{\mathring{\mathcal{I}};y;i}\right)\right),
+        :label: HD_I_CBED__1
+
+    5. For :math:`0\le k<N_{\text{D}}`, calculate
 
     .. math ::
         \mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}&
@@ -879,7 +890,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         q_{\mathring{\mathcal{I}};x;j},q_{\mathring{\mathcal{I}};y;i}\right),
         T_{\square;y}\left(q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right)\right),
-        :label: HD_I_CBED__1
+        :label: HD_I_CBED__2
 
     .. math ::
         \mathring{\mathcal{I}}_{k;\text{DS};⌑;i,j}\leftarrow
@@ -908,7 +919,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         \mathcal{I}_{\text{DOM};⌑;n,m}+\mathcal{I}_{k;\text{DS};⌑;n,m}.
         :label: LD_I_DOM__2
 
-    5. Calculate
+    6. Calculate
 
     .. math ::
         \mathcal{I}_{\text{DOM};⌑;n,m}\leftarrow
@@ -917,7 +928,7 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         \mathcal{I}_{\text{DOM};⌑;n,m}.
         :label: LD_I_DOM__3
 
-    6. For :math:`0\le k<N_{\text{M}}`, calculate
+    7. For :math:`0\le k<N_{\text{M}}`, calculate
 
     .. math ::
         \mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}&
@@ -926,9 +937,9 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         q_{\mathring{\mathcal{I}};x;j},q_{\mathring{\mathcal{I}};y;i}\right),
         T_{\square;y}\left(q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right)\right).
-        :label: HD_I_CBED__2
+        :label: HD_I_CBED__3
 
-    7. Calculate
+    8. Calculate
 
     .. math ::
         \mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}\leftarrow
@@ -936,21 +947,21 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         q_{\mathring{\mathcal{I}};x;j},
         q_{\mathring{\mathcal{I}};y;i}\right)\right)
         \left|\mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}\right|.
-        :label: HD_I_CBED__3
+        :label: HD_I_CBED__4
 
-    8. Apply average pooling to
+    9. Apply average pooling to
     :math:`\mathring{\mathcal{I}}_{\text{CBED};⌑;i,j}` with a kernel of
     dimensions :math:`\left(N_{\mathring{\mathcal{I}};y}/N_{\mathcal{I};y},
     N_{\mathring{\mathcal{I}};x}/N_{\mathcal{I};x}\right)`, and store the result
     in :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`.
 
-    9. Apply a Gaussian filter to :math:`\mathcal{I}_{\text{CBED};⌑;n,m}` that
+    10. Apply a Gaussian filter to :math:`\mathcal{I}_{\text{CBED};⌑;n,m}` that
     is identical in outcome to that implemented by the function
     :func:`scipy.ndimage.gaussian_filter`, with ``sigma`` set to
     ``gaussian_filter_std_dev`` and ``truncate`` set to ``4``, and store the
     result in :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`.
 
-    10. Calculate
+    11. Calculate
 
     .. math ::
         k_{\text{I};1}\leftarrow
@@ -964,18 +975,18 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         k_{\text{I};2}\leftarrow k_{\text{I};1}+N_{\text{DPW}}-1.
         :label: k_I_2__1
 
-    11. If ``apply_shot_noise`` is set to ``True``, then apply shot/Poisson
+    12. If ``apply_shot_noise`` is set to ``True``, then apply shot/Poisson
     noise to :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`, and store the result in
     :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`.
 
-    12. If :math:`N_{\text{DPW}}>0`, then inpaint the pixels in the rows indexed
+    13. If :math:`N_{\text{DPW}}>0`, then inpaint the pixels in the rows indexed
     from :math:`k_{\text{I};1}` to :math:`k_{\text{I};2}` and the columns
     indexed from :math:`k_{\text{I};1}` to :math:`k_{\text{I};2}` of the image
     :math:`\mathcal{I}_{\text{CBED};⌑;n,m}` using the function
     :func:`skimage.restoration.inpaint_biharmonic`, and store the result in
     :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`.
 
-    13. Calculate
+    14. Calculate
 
     .. math ::
         \mathcal{I}_{\text{CBED};⌑;n,m}\leftarrow
@@ -984,25 +995,25 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         \mathcal{I}_{\text{CBED};⌑;n,m}.
         :label: LD_I_CBED__1
 
-    14. Update pixels of :math:`\mathcal{I}_{\text{CBED};⌑;n,m}` at pixel
+    15. Update pixels of :math:`\mathcal{I}_{\text{CBED};⌑;n,m}` at pixel
     locations specified by ``cold_pixels`` to the value of zero.
 
-    15. Apply min-max normalization of :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`,
+    16. Apply min-max normalization of :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`,
     and store result in :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`.
 
-    16. Calculate
+    17. Calculate
 
     .. math ::
         \mathcal{I}_{\text{CS};⌑;n,m}\leftarrow1
         -\mathcal{I}_{\text{MF};⌑;n,m}\mathcal{I}_{\text{OI};⌑;n,m}.
         :label: LD_I_CS__1
 
-    17. Convolve a :math:`3 \times 3` filter of ones over a symmetrically unity-padded
+    18. Convolve a :math:`3 \times 3` filter of ones over a symmetrically unity-padded
     :math:`\mathcal{I}_{\text{CS};⌑;n,m}` to yield an output matrix with the
     same dimensions of :math:`\mathcal{I}_{\text{CBED};⌑;n,m}`, and store said
     output matrix in :math:`\mathcal{I}_{\text{CS};⌑;n,m}`.
 
-    18. For :math:`0\le k<N_{\text{D}}`, calculate
+    19. For :math:`0\le k<N_{\text{D}}`, calculate
 
     .. math ::
         \mathcal{I}_{k;\text{DCM};⌑;n,m}\leftarrow
@@ -1010,10 +1021,10 @@ class CBEDPattern(fancytypes.PreSerializableAndUpdatable):
         :label: LD_I_DCM__1
 
     .. math ::
-        \Omega_{k;\text{DCR};⌑}\leftarrow\begin{cases}
-        \text{True}, & \text{if }
-        \left(\sum_{n,m}\mathcal{I}_{k;\text{DCM};⌑;n,m}\neq0\right)\bigparallel
-        \left(\sum_{n,m}\mathcal{I}_{k;\text{DS};⌑;n,m}=0\right),\\
+        \Omega_{k;\text{DCR};\wasylozenge}\leftarrow\begin{cases}
+        \text{True}, & \text{if }\left.\left(\sum_{n,m}
+        \mathcal{I}_{k;\text{DCM};\wasylozenge;n,m}\neq0\right)\right\Vert
+        \left(\sum_{n,m}\mathcal{I}_{k;\text{DS};\wasylozenge;n,m}=0\right),\\
         \text{False}, & \text{otherwise},
         \end{cases}
         :label: Omega_k_DCR__1
@@ -3496,8 +3507,8 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
             N_{\mathcal{I};x}=N_{\mathcal{I};y},
             :label: N_I_x_eq_N_I_y__2
 
-        Furthermore, let :math:`N_{\text{max-iter}}=30, and let N_{\text{SS}}`
-        be ``disk_boundary_sample_size``.
+        Furthermore, let :math:`N_{\text{max-iter}}=30`, and let
+        :math:`N_{\text{SS}}` be ``disk_boundary_sample_size``.
 
         Next, let :math:`\partial S_{\text{PDS};x;l}` and :math:`\partial
         S_{\text{PDS};y;l}` denote
