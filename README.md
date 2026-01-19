@@ -6,6 +6,7 @@
 [![PyPi Version](https://img.shields.io/pypi/v/fakecbed.svg)](https://pypi.org/project/fakecbed)
 [![Conda-Forge Version](https://img.shields.io/conda/vn/conda-forge/fakecbed.svg)](https://anaconda.org/conda-forge/fakecbed)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.18297325-blue.svg)](https://doi.org/10.5281/zenodo.18297325)
 
 `fakecbed` is a Python library for generating quickly images that imitate
 convergent beam electron diffraction patterns.

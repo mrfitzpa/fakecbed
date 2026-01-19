@@ -22,5 +22,9 @@ keywords:
   - cbed
   - gpu
 license: GPL-3.0
-version: 0.5.2
+version: 0.5.3
 date-released: '2026-01-18'
+identifiers:
+  - description: "This is the collection of archived snapshots of all versions."
+    type: doi
+    value: 10.5281/zenodo.18297325
