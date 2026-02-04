@@ -3737,7 +3737,7 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
         Returns
         -------
-        principal_disk_bounding_box_in_uncropped_image_fractional_coords : `torch.Tensor` (`float`, shape=(core_attrs["disk_boundary_sample_size"], 2)) | `None`
+        principal_disk_bounding_box_in_uncropped_image_fractional_coords : `array_like` (`float`, shape=(4,)) | `None`
             The attribute 
             :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_uncropped_image_fractional_coords`.
 
@@ -3960,7 +3960,7 @@ class CroppedCBEDPattern(fancytypes.PreSerializableAndUpdatable):
 
         Returns
         -------
-        principal_disk_bounding_box_in_cropped_image_fractional_coords : `torch.Tensor` (`float`, shape=(core_attrs["disk_boundary_sample_size"], 2)) | `None`
+        principal_disk_bounding_box_in_cropped_image_fractional_coords : `array_like` (`float`, shape=(4,)) | `None`
             The attribute 
             :attr:`fakecbed.discretized.CroppedCBEDPattern.principal_disk_bounding_box_in_cropped_image_fractional_coords`.
 
